@@ -2,7 +2,7 @@
 In the below picture you can see the 6/6 in Ready column for pods "ebs-csi-controller" means 6 containers are running that pod if we use describe pod command for "ebs-csi-controller" in kube-system namspace you will get detailed info of those 6 containers.
 A pod can contain N number of containers.
 ![alt text](.images/image.png)
-
+**Note:** in K8's resource creation takes more priority than deletion
 ## How to attach EBS volume to a Pod?
 **Answer:**  
 Step 1 : First we will create a service account this name 'ebs-csi-controller-sa' if we are using EBS volume we can use other name also but we need to override the name using the "controller.serviceAccount.name" parameter in the official aws-ebs-csi-driver Helm chart, but you will then have to manually rewrite your AWS IAM Trust Policy to match the new string exactly.
@@ -226,6 +226,15 @@ HPA Formula
 = 4
 ```
 so HPA Scale to 4 pods.
+by default every 15 seconds it will check metrics If average CPU crosses your 60% threshold (and is outside the 10% tolerance) will create new replica.
+### Scale up behaviour
+By default, the tolerance is set to 0.1 (10%). '''math $$0.9 \le \text{Ratio} \le 1.1$$ ''' it completely skips autoscaling.
+EX: Your Target CPU: 60% The Safe Zone: 10% below 60% is 54%, and 10% above 60% is 66%.
+1. if your cpu usage is 64 64/60 is 1.066 no pod replica created.
+2. if your cpu usage is 72 72/60 is 1.2 greater than 10% tolerance pod replica created.
+
+### Scale down Behaviour
+By default, the HPA looks back at a 5-minute window if the cpu usage is under desired thresold it will remove the pod gracefully.
 
 ```yaml
 apiVersion: apps/v1
@@ -271,4 +280,77 @@ spec:
       target:
         type: Utilization
         averageUtilization: 60
+    behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60  # Reduces scale-down wait from 5 mins to 1 min
 ```
+
+## EKS cluster Auto scaling
+
+Cluster Auto Scaler implementation guide: 
+https://github.com/avizway1/k8s/blob/main/07-%20eks-cluster-autoScaler.md
+
+Add below polocies to EKS Node's IAM roles:
+1. AmazonEKSComputePolicy
+2. AutoScalingFullAccess
+Need to provide above policies to automatically create the ASG to scale nodes then Navigate to AutoScaling group and adjust the max instance count.
+
+We need below helm repo to install the Cluster Autoscaler for Kubernetes. Cluster Autoscaler automatically scale the nodes when load is increased.
+
+helm repo add autoscaler https://kubernetes.github.io/autoscaler
+
+helm repo update
+
+helm install cluster-autoscaler autoscaler/cluster-autoscaler \
+  --namespace kube-system \
+  --set autoDiscovery.clusterName=<cluster_name> \
+  --set awsRegion=ap-south-1 \
+  --set extraArgs.balance-similar-node-groups=true \
+  --set extraArgs.skip-nodes-with-system-pods=false
+
+
+autoDiscovery.clusterName=<cluster-name>: Enables automatic node discovery for the specified EKS cluster.
+awsRegion=<region-code>: Set your AWS region, e.g., ap-south-1 (Mumbai).
+balance-similar-node-groups=true: Distributes workloads evenly across node groups.
+skip-nodes-with-system-pods=false: Ensures system pods do not block node termination.
+
+kubectl get pods -n kube-system | grep cluster-autoscaler
+
+in the below img you can see the Cluster Auto scaler pod is running. this pod will take care of autoscaling in cluster.
+![alt text](.images/image.png)
+
+kubectl scale deployment php-apache --replicas=10
+
+## How many pods we can run in a ec2 instance?
+**Answer:** '''math \(\text{Max\ Pods}=(\text{Number\ of\ ENIs}\times (\text{IPs\ per\ ENI}-1))+2\) '''
+
+| EC2 Instance Type | Max ENIs | IPv4 Addresses per ENI | Default Max Pods |
+|-------------------|----------|-------------------------|-------------------|
+| t3.large / t2.large | 3 | 12 | 35 |
+
+## Did you use VPA in your Prod workload?
+A. mostly we don't use VPA in Prod workload.
+
+## Goldilocks app performance test tool
+
+Goldilocks is an opensource tool to identify suitable workload configurations.
+
+helm repo add fairwinds-stable https://charts.fairwinds.com/stable
+
+kubectl create ns goldilocks ---> recomended to create namespace for goldilocks
+
+helm install goldilocks --namespace goldilocks fairwinds-stable/goldilocks --version 10.3.0
+
+
+--> add a label to the namespaces you want to monitor using goldilocks.
+
+kubectl label ns default goldilocks.fairwinds.com/enabled=true
+kubectl label ns goldilocks goldilocks.fairwinds.com/enabled=true
+
+kubectl -n goldilocks port-forward svc/goldilocks-dashboard 8080:80
+
+---
+repo for VPA: 
+git clone https://github.com/kubernetes/autoscaler.git
+follow below markdown to test VPA
+https://github.com/avizway1/k8s/blob/main/08-%20vpa%20and%20Goldilocks.md
