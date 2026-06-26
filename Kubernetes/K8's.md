@@ -219,7 +219,8 @@ Pod C: 90m (90% utilization) so average usage is 80% and
 HPA Formula
 
 ```math
-\text{desiredReplicas} = \left\lceil 3 \times \left(\frac{80\%}{60\%}\right)\right\rceil
+\text{desiredReplicas} = \left\lceil currentReplicas× \times \left(\frac{currentMetricValue\%}{desiredMetricValue\%}\right)\right\rceil
+= \left\lceil 3 \times \left(\frac{80\%}{60\%}\right)\right\rceil
 = \left\lceil 3 \times 1.333\right\rceil
 = \left\lceil 4.0\right\rceil
 = 4
