@@ -135,3 +135,139 @@ Headless Service:
 Client ──(Asks CoreDNS for IPs)──> Returns [Pod1 IP, Pod2 IP, Pod3 IP]
 Client ──────────────────────(Direct Connection)──────────────────────> Pod1 IP
 ![alt text](.images/Headless_service.png)
+
+
+#Helm Charts
+**Helm is a package manager for K8s like dnf/yum for linux and npm for node.js**
+
+--> Instead of writing and managing multiple YAML file manually, you use a helm chart - a prep packaged collection of k8s resources.
+
+**prerequisite:** We need to login to docker hub to install helm charts.
+chart : A package of k8s resources template
+
+Repository : A place where charts are stored (https://artifacthub.io/ / local)
+
+release : A running instance of a chart in our k8s cluster (v1 v2)
+
+Values : Configuration that customizes a chart at installation time.
+
+
+
+windows: 
+1. Install choco (https://chocolatey.org/)
+2. Install helm (choco install kubernetes-helm)
+
+Mac: brew install helm
+
+Linux: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | bash
+
+verify: helm version
+
+
+
+helm repo add bitnami https://charts.bitnami.com/bitnami		--> Adding bitnami repo to local
+
+helm repo list								--> shows installed repo list			
+
+helm repo update							--> update the repos
+
+helm search repo nginx						--> search for repo using cli
+
+
+
+helm pull bitnami/nginx	--untar --> used to pull the nginx repo to check what is there in that repo
+
+* chart.yaml		--> Chart metadata
+* values.yaml		--> we will mention our values(like image names, versions and other values) to override the default values
+* templates			--> K8s YAML templates
+
+
+helm ls				--> List installed releases
+helm ls -A			--> list from all namespaces
+Make sure to login to docker "docker login"
+
+helm install my-nginx bitnami/nginx						--> Install binami managed helm chart in our k8s environment, and helm name it as "my-nginx"
+
+helm install my-nginx bitnami/nginx --version 23.0.0	--> Install with specific version
+
+helm upgrade my-nginx bitnami/nginx --set replicaCount=4	--> Imperatively/explicitly pass the value
+
+helm upgrade my-nginx bitnami/nginx -f values.yaml			--> Adjust the values file then deploy
+
+helm history my-nginx					--> Shows my-nginx app history
+
+helm rollback my-nginx 2				--> We can rollback to previous version
+
+helm uninstall my-nginx					--> 
+
+
+helm install my-nginx bitnami/nginx -f values.yaml --dry-run --debug
+
+helm install mynodeapp ./mynodeapp  --> used to install our app 
+
+helm upgrade mynodeapp ./mynodeapp --description "Adjusting pod count to 3"
+
+
+helm show values mynodeapp 
+helm get values mynodeapp --revision 3
+
+
+## Horizontal Pod Autoscaler(HPA):
+It is used increase the pod replicas according load on CPU
+In the below manifest we have a deployment called 3 pod replicas(cpu 100m) and configured the HPA with 60% The HPA controller queries the Metrics Server and sees the 3 running pods CPU usage like Pod A: 70m (70% utilization) Pod B: 80m (80% utilization)
+Pod C: 90m (90% utilization) so average usage is 80% and 
+HPA Formula
+
+```math
+\text{desiredReplicas} = \left\lceil 3 \times \left(\frac{80\%}{60\%}\right)\right\rceil
+= \left\lceil 3 \times 1.333\right\rceil
+= \left\lceil 4.0\right\rceil
+= 4
+```
+so HPA Scale to 4 pods.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+  namespace: default
+spec:
+  replicas: 3 # Initial starting pod count
+  selector:
+    matchLabels:
+      app: web-app
+  template:
+    metadata:
+      labels:
+        app: web-app
+    spec:
+      containers:
+      - name: application
+        image: nginx:latest
+        resources:
+          requests:
+            cpu: "100m"  # Required baseline for HPA calculation
+          limits:
+            cpu: "200m"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web-app-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment    # if it is pod we will give pod here
+    name: web-app
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+```
