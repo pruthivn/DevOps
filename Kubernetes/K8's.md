@@ -137,7 +137,7 @@ Client ──────────────────────(Direct
 ![alt text](.images/Headless_service.png)
 
 
-#Helm Charts
+# Helm Charts
 **Helm is a package manager for K8s like dnf/yum for linux and npm for node.js**
 
 --> Instead of writing and managing multiple YAML file manually, you use a helm chart - a prep packaged collection of k8s resources.
@@ -354,3 +354,482 @@ repo for VPA:
 git clone https://github.com/kubernetes/autoscaler.git
 follow below markdown to test VPA
 https://github.com/avizway1/k8s/blob/main/08-%20vpa%20and%20Goldilocks.md
+
+
+## Deployment Strategies in K8's?
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+spec:
+  replicas: 4
+  strategy:
+    type: RollingUpdate   # if we want canary strategy will change to canary
+    rollingUpdate:
+      maxSurge: 1        # Allow 1 extra pod during update → 5 pods briefly
+      maxUnavailable: 1  # Allow 1 pod to be down → minimum 3 always running
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+    spec:
+      containers:
+        - name: app
+          image: avizway/app:v2   # ← Change to :v2 or :v3 to trigger rolling update
+          ports:
+            - containerPort: 5000
+          env:
+            - name: NODE_NAME       # Downward API — pod learns its own node name
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app-svc
+spec:
+  type: LoadBalancer
+  selector:
+    app: demo-app
+  ports:
+    - port: 80
+      targetPort: 5000
+```
+
+**Rolling update:** it is k8's default updating strategy.
+
+Downtime: None
+Risk: low
+
+if we didn't provide max_surge & max_unavailable K8s picks 25% of our replica count as "maxSurge" & 25% of our replica count as "maxUnavailable"
+
+
+kubectl rollout status deployment/demo-app  
+
+kubectl rollout history deployment/demo-app  
+
+kubectl rollout undo deployment/demo-app  
+
+kubectl rollout undo deployment/demo-app --to-revision=1 --> to rollback to specific revision
+
+kubectl rollout restart deployment/demo-app
+
+---
+
+Recreate Deployment : The entire ols version will be deleted, then new version starts. 
+
+brief downtime expected here.
+Medium: risk
+
+kubectl rollout history deployment/demo-app 
+
+kubectl rollout undo deployment/demo-recreate
+
+---
+
+Blue/Green Deployment
+
+Blue = Current live version
+Green = New version
+
+At a time, we need to have 2 environments up and running.. We can use service to switch to "blue / green"..
+for a period of time, you should have 2x pods/cost..
+
+```yaml
+# ── BLUE Deployment (current live) ─────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-blue
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: demo-bg
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: demo-bg
+        version: blue
+    spec:
+      containers:
+        - name: app
+          image: avizway/app:blue
+          ports:
+            - containerPort: 5000
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+---
+# ── GREEN Deployment (new version) ─────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-green
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: demo-bg
+      version: green
+  template:
+    metadata:
+      labels:
+        app: demo-bg
+        version: green
+    spec:
+      containers:
+        - name: app
+          image: avizway/app:green
+          ports:
+            - containerPort: 5000
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+---
+# ── Service — THE SWITCH ────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-bg-svc
+spec:
+  type: LoadBalancer
+  selector:
+    app: demo-bg
+    version: blue     # ← This is the only thing you change to flip traffic
+  ports:
+    - port: 80
+      targetPort: 5000
+```
+
+---
+
+Canary Deployment : We can send small % of real user requests to canary version, then we can gradually increase it for everyone.
+
+Multiple deployments required.. 
+
+10 pods:
+9 pods -> v1 (stable)
+1 pod -> canary
+
+If canary works good.. then extend some portion..
+7 pods -> stable
+3 pods -> canary
+
+finally:
+0 pods -> v1
+10 pods -> canary
+
+
+## Deployment controlls
+
+
+eksctl utils associate-iam-oidc-provider --region ap-south-1 --cluster ekswithavinash --approve
+
+
+Node Affinity : Choose which nodes pods prefer/require. 
+Control which nodes you pods should run on, Based on "node labels".
+
+kubectl get nodes
+kubectl get nodes --show-labels
+kubectl describe nodes <name>
+
+kubectl get pods -o wide
+
+kubectl label nodes <node-name> disktype=ssd
+
+We have 2 options on Node Affinity :
+
+1. Hard Rule: Pod must run on a matching node, if no match found, it stays pending.
+requiredDuringScheduling
+
+2. Soft Rule : Pod prefer matching nodes but it will run even if no node has the label.
+preferredDuringScheduling
+
+IgnoreDuringExecution : Running pods won't be evicted if labels change. if we remove the node label after running the pods with this label "RequiredDuringSchedulingIgnoredDuringExecution" the pods still run in those nodes.
+
+RequiredDuringExecution: to overcome the above issue k8's introduced this but it is not widely used.
+
+
+ip-192-168-3-17.ap-south-1.compute.internal    Ready    <none>   5m13s   v1.34.6-eks-bbe087e
+ip-192-168-36-39.ap-south-1.compute.internal   Ready    <none>   5m12s   v1.34.6-eks-bbe087e
+
+
+kubectl label nodes ip-192-168-3-17.ap-south-1.compute.internal disktype=ssd
+
+kubectl describe nodes ip-192-168-3-17.ap-south-1.compute.internal
+## Taint and Toleration:
+
+Taint (node) : like a bus seat, marked as "reserved"
+Tolaration (pod) : the special pass that lets the user to sit on "reserved" seat.
+
+Effects:
+NoSchedule : New pods wont be scheduled here
+PreferNoSchedule : k8s avaoids scheduling here, but its not strict
+NoExecute : Existing pods without tolaration are evicted.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-pod-2
+spec:
+  nodeSelector:
+    disktype: ssd
+  tolerations:
+    - key: "role"           # the taint key on the node ( see the command)
+      operator: "Equal"     # he pod must match the taint value exactly.
+      value: "db"
+      effect: "NoSchedule"  # this allows the pod to be scheduled on a tainted node, but only for this kind of taint.
+  containers:
+    - name: mysql
+      image: mysql:8.0
+      env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: example
+      ports:
+        - containerPort: 3306
+```
+
+Step 1 : add a label to a Node, so that we can force our pod to run on that specific node using "nodeselector"
+
+kubectl label nodes ip-192-168-3-17.ap-south-1.compute.internal disktype=ssd
+
+Step 2 : taint the same node.
+
+kubectl taint nodes ip-192-168-3-17.ap-south-1.compute.internal role=db:NoSchedule
+
+to remove taint: kubectl taint nodes ip-192-168-3-17.ap-south-1.compute.internal role=db:NoSchedule-
+
+**Note :** any k8's command ending with "-" means remove, in the above command we are removing the taint.
+
+=====
+
+Node Drain: 
+
+Drain evicts all pods from a node gracefully. 
+Used when:
+Node Maintenance (patch / h/w upgrade)
+Decomissioning a node
+cluster upgrades
+
+kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data --timeout=120s
+
+kubectl describe nodes ip-192-168-3-17.ap-south-1.compute.internal
+putting our node i maintainence mode
+
+kubectl drain ip-192-168-3-17.ap-south-1.compute.internal --ignore-daemonsets --delete-emptydir-data --timeout=120s --force
+
+--ignore-daemonsets: skips daemonset pods, because they are usually expected to run on every node
+--delete-emptydir-data: deletes pods using emptyDir volumes, since those data are temporary
+--timeout=120s: gives Kubernetes 120 seconds to evict pods
+--force: forces eviction even if some pods are not evicted gracefully
+
+kubectl uncordon ip-192-168-3-17.ap-south-1.compute.internal
+it is used make the node available again after maintenance
+
+Restart the deployment to rebalance pods:
+kubectl rollout restart deployment nginx-deployment
+
+## Probes
+
+Liveness Probe : Is the container alive.? (if fails: Container restarts)
+
+Readiness Probe : Is the container ready to serve traffic.? (if fails: Container remove from service)
+
+Startup probe : Has the container finished starting.? (if fails: Container killed and restarted)
+
+
+initialDelaySeconds : Wait before first check
+periodSeconds : check every "x" seconds
+failureThreshold : Restart after "x" consecutives failures.
+
+```yaml
+# KUBERNETES HEALTH PROBES DEMONSTRATION
+# 
+# THREE TYPES OF PROBES:
+# 1. STARTUP PROBE: Checks if container has started successfully
+# 2. READINESS PROBE: Checks if container is ready to receive traffic
+# 3. LIVENESS PROBE: Checks if container is still running healthy
+#
+# PROBE EXECUTION ORDER: Startup → Readiness → Liveness (ongoing)
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthcheck-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: healthcheck
+  template:
+    metadata:
+      labels:
+        app: healthcheck
+    spec:
+      containers:
+        - name: app
+          # Using nginx with custom health endpoints via configmap
+          image: nginx:1.25
+          ports:
+            - containerPort: 80
+          
+          # STARTUP PROBE: Runs FIRST, before other probes
+          # Purpose: Protects slow-starting containers from being killed by liveness probe
+          # Behavior: Disables liveness/readiness until startup succeeds
+          startupProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10    # Wait 10s before first check
+            periodSeconds: 5           # Check every 5s
+            failureThreshold: 6        # Allow 6 failures (30s total)
+            timeoutSeconds: 3          # 3s timeout per check
+          
+          # READINESS PROBE: Determines if pod should receive traffic
+          # Purpose: Controls service endpoint inclusion
+          # Behavior: Pod removed from service if fails, added back when passes
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5     # Start checking after 5s
+            periodSeconds: 10          # Check every 10s
+            failureThreshold: 3        # 3 failures = not ready
+            successThreshold: 1        # 1 success = ready
+            timeoutSeconds: 5          # 5s timeout per check
+          
+          # LIVENESS PROBE: Determines if container should be restarted
+          # Purpose: Detects deadlocks, infinite loops, unresponsive states
+          # Behavior: Kills and restarts container if fails
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15    # Wait 15s before first check
+            periodSeconds: 20          # Check every 20s
+            failureThreshold: 3        # 3 failures = restart container
+            timeoutSeconds: 5          # 5s timeout per check
+          
+          # Resource limits to prevent resource exhaustion
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+
+---
+# SERVICE TO DEMONSTRATE READINESS PROBE EFFECT
+apiVersion: v1
+kind: Service
+metadata:
+  name: healthcheck-service
+spec:
+  selector:
+    app: healthcheck
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP
+```
+pods wont receive traffic untill the readiness probe passes.
+
+Startup probe is useful for slow-start application.. 
+** liveness and readiness probes wont start untill startup probe success.
+
+===========
+
+minReadySeconds : How long a new pod must run without crashing before its considered available.
+
+progressDeadlineSeconds : Max time for a deployment to make progress. If exceeds, deployment is marked as failed.
+
+terminationGracePeriodSeconds : Time given to a pod to shutdown gracefully before being killed.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: timing-app
+spec:
+  replicas: 2
+  minReadySeconds: 20
+  progressDeadlineSeconds: 120
+  selector:
+    matchLabels:
+      app: timing
+  template:
+    metadata:
+      labels:
+        app: timing
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: app
+          image: busybox
+          command: ["sh", "-c", "sleep 3600"]
+```
+=========
+
+pdb : pod distruption budget :  Its used to protect application availability during voluntary distruption. 
+
+Voluntary distruption means:
+node drain
+cluster upgrade
+autoscaler removing the nodes
+manual pod eviction
+
+** it does not protect against sudden crashes like; node failure / pod failure.
+
+
+PDB inform k8s : always keep at least 2 pods running when maintenance happens.
+
+
+
+# 2. VOLUNTARY DISRUPTION (Node Drain):
+#    kubectl drain <node-name> --ignore-daemonsets
+#    Result: Only 2 pods evicted at once, 3 remain available
+#
+# 3. CHECK PDB STATUS:
+#    kubectl get pdb web-app-pdb
+#    Shows: ALLOWED DISRUPTIONS and current status
+#
+# 4. SIMULATE DISRUPTION:
+#    kubectl delete pod <pod-name>  # This bypasses PDB (direct deletion)
+#    kubectl drain node             # This respects PDB
+
+
+==================
+
+
