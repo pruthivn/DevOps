@@ -818,18 +818,94 @@ PDB inform k8s : always keep at least 2 pods running when maintenance happens.
 
 
 # 2. VOLUNTARY DISRUPTION (Node Drain):
-#    kubectl drain <node-name> --ignore-daemonsets
-#    Result: Only 2 pods evicted at once, 3 remain available
-#
+    kubectl drain <node-name> --ignore-daemonsets
+    Result: Only 2 pods evicted at once, 3 remain available
+
 # 3. CHECK PDB STATUS:
-#    kubectl get pdb web-app-pdb
-#    Shows: ALLOWED DISRUPTIONS and current status
-#
+    kubectl get pdb web-app-pdb
+    Shows: ALLOWED DISRUPTIONS and current status
+
 # 4. SIMULATE DISRUPTION:
-#    kubectl delete pod <pod-name>  # This bypasses PDB (direct deletion)
-#    kubectl drain node             # This respects PDB
+    kubectl delete pod <pod-name>  # This bypasses PDB (direct deletion)
+    kubectl drain node             # This respects PDB
 
 
 ==================
+
+## IRSA (IAM Role for Service Account):
+
+
+IRSA (IAM Role for Service Account): THis helps K8s pods to assume an AWS IAM role to access AWS servcies i.e; dynamodb, S3, LoadBalancer.. This wont store the credentials inside the pod.
+
+Pod --> K8s Service Account --> AWS IAM Role (policy) --> AWS Service
+
+eksctl create iamserviceaccount --name s3-access-sa --namespace default --cluster ekswithavinash --region ap-south-1 --attach-policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess --approve --override-existing-serviceaccounts
+
+```yaml
+spec:
+  serviceAccountName: s3-access-sa # if we give the Service account name wrong(if service account is not exist in cluster) the pod will goes to crashloopbackoff state
+  containers:
+  - name: aws-cli
+    image: amazon/aws-cli
+    command: ["sleep", "infinity"]
+```
+
+kubectl describe sa s3-access-sa
+
+kubectl exec -it <pod-name> -- /bin/sh
+
+kubectl exec -it s3-app-654686bdbc-r886h -- /bin/sh
+
+kubectl exec -it s3-app-654686bdbc-r886h -- aws s3 ls
+
+
+# Ingress
+
+Ingress components : Defines routing rules, how external traffic reach service. (Path & Host based routing, SSL termination)
+
+Ingress Controller / Load Balancer Controller : These are pods, runs in kube-system. Actual ingress rules are provisioned at this level. (NGINX Ingress Controller, Traefik)
+
+![alt text](.images/image.png)
+
+LB and target group : we already know these
+
+---
+
+Refer excalidraw diagram for Path based and IP Based routing.. 
+
+---
+
+Step 1 : download IAM policy 
+
+curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.11.0/docs/install/iam_policy.json
+
+
+Step 2 : create apolicy using the download policy file
+
+aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://iam_policy.json
+
+
+Step 3 : create service account and use the existing policy we created.
+
+eksctl create iamserviceaccount --name aws-load-balancer-controller --namespace kube-system --cluster ekswithavinash --region ap-south-1 --attach-policy-arn arn:aws:iam::655700896650:policy/AWSLoadBalancerControllerIAMPolicy --approve --override-existing-serviceaccounts
+
+
+Step 4 : Add helm repo
+
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update eks
+
+Step 5 : Install the Loadbalancer controller using helm chart
+
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=ekswithavinash --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller
+
+---
+
+create dynamodb table first in aws
+
+also, create a service account to access dynamodb
+
+Tablename : aviz-students
+Partition key : StudentId
 
 
