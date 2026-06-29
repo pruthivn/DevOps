@@ -317,7 +317,7 @@ skip-nodes-with-system-pods=false: Ensures system pods do not block node termina
 kubectl get pods -n kube-system | grep cluster-autoscaler
 
 in the below img you can see the Cluster Auto scaler pod is running. this pod will take care of autoscaling in cluster.
-![alt text](.images/image.png)
+![alt text](.images/Cluster_scaler.png)
 
 kubectl scale deployment php-apache --replicas=10
 
@@ -865,7 +865,7 @@ Ingress components : Defines routing rules, how external traffic reach service. 
 
 Ingress Controller / Load Balancer Controller : These are pods, runs in kube-system. Actual ingress rules are provisioned at this level. (NGINX Ingress Controller, Traefik)
 
-![alt text](.images/image.png)
+![alt text](.images/Ingress.png)
 
 LB and target group : we already know these
 
@@ -909,3 +909,298 @@ Tablename : aviz-students
 Partition key : StudentId
 
 
+# Isitio
+===
+Def: Istio is open-source Service used to connect, secure and monitor microservices. using this one microservice can communicate with other securly using mtls.
+ISTIO CONFIGURATION
+===
+
+---
+
+istio Documentation page: https://istio.io/latest/docs/setup/getting-started/
+
+Download the latest istio:
+curl -L https://istio.io/downloadIstio | sh -
+
+cd istio-1.29.2
+
+export PATH=$PWD/bin:$PATH
+
+---
+
+After above step, You should able to run "istioctl" command
+
+Create a sample pod, and observe how many containers we have inside the pod. (1/1)
+
+---
+
+--> Install istio control plane : Installs istio into k8s cluster using predefined profile.
+
+istioctl install -f samples/bookinfo/demo-profile-no-gateways.yaml -y
+
+
+--> verify the istio-system namespace creation and pods status
+
+kubectl get all -n istio-system
+
+
+--> Now enable istio sidecar injection for default namespace workload..
+
+kubectl label namespace default istio-injection=enabled
+
+---
+
+After above step,  Create a sample pod, and observe how many containers we have inside the pod. (2/2)
+
+
+---
+
+
+kubectl get pods -n istio-system
+
+kubectl get crd gateways.gateway.networking.k8s.io &> /dev/null || \
+{ kubectl kustomize "github.com/kubernetes-sigs/gateway-api/config/crd?ref=v1.4.0" | kubectl apply -f -; }
+
+
+
+===========
+
+Now lets deploy the actual application: 
+
+
+kubectl apply -f samples/bookinfo/platform/kube/bookinfo.yaml
+
+
+kubectl get services
+
+kubectl get pods
+
+validate: 
+kubectl exec "$(kubectl get pod -l app=ratings -o jsonpath='{.items[0].metadata.name}')" -c ratings -- curl -sS productpage:9080/productpage | grep -o "<title>.*</title>"
+
+Above command should display book title text.. 
+
+====
+
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/latest/download/standard-install.yaml
+
+
+kubectl apply -f samples/bookinfo/gateway-api/bookinfo-gateway.yaml
+
+kubectl annotate gateway bookinfo-gateway networking.istio.io/service-type=ClusterIP --namespace=default
+
+kubectl get gateway
+
+kubectl port-forward svc/bookinfo-gateway-istio 8080:80 -n default
+
+
+====
+
+--> Below command creates a container without sidecar, Am going to test the application access from a pod, which dont have sidecar/envoy proxy.. 
+
+kubectl run curl-naked \
+  -n default \
+  --image=curlimages/curl:8.4.0 \
+  --annotations='sidecar.istio.io/inject=false' \
+  -- sleep 3600
+
+kubectl exec -n default -it curl-naked -- \
+  curl -v http://productpage:9080/productpage
+
+
+---
+
+If mTLS is STRICT → curl fails (503 or connection error)
+
+If mTLS is PERMISSIVE → curl succeeds (200 OK) - Default mode.. From above pod, we are able to access the webpage, as mTLS defaulty setup as PERMISSIVE.
+
+---
+Now apply strict mTLS
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: default
+spec:
+  mtls:
+    mode: STRICT
+
+
+--
+
+kubectl exec -n default -it curl-naked -- \
+  curl -v http://productpage:9080/productpage
+
+--
+
+
+kubectl run curl-naked-2 \
+  -n default \
+  --image=curlimages/curl:8.4.0 \
+  -- sleep 3600
+
+kubectl exec -n default -it curl-naked-2 -- \
+  curl -v http://productpage:9080/productpage
+
+
+-------
+
+
+git clone https://github.com/istio/istio.git
+cd istio/
+kubectl apply -f samples/addons
+
+===
+
+navigate back to istio downloaded folder..
+
+kubectl apply -f samples/addons/kiali.yaml
+kubectl rollout status deployment/kiali -n istio-system
+
+istioctl dashboard kiali
+
+for i in $(seq 1 100); do curl -s -o /dev/null "http://localhost:8080/productpage"; done
+
+---
+
+# kubecongif file(context management in K8's)
+
+
+eksctl create cluster --name=ekswithavinash --version 1.34 --region ap-south-1 --zones=ap-south-1a,ap-south-1b --nodegroup-name mynodegroup --node-type c7i-flex.large --nodes 2 --node-ami-family=AmazonLinux2023 --managed
+
+
+eksctl create cluster --name=ekswithavinash-uat --version 1.34 --region ap-south-1 --zones=ap-south-1a,ap-south-1b --nodegroup-name mynodegroup --node-type c7i-flex.large --nodes 2 --node-ami-family=AmazonLinux2023 --managed
+
+
+Kubeconfig file location :  ~/.kube/config
+
+kubectl config get-contexts			--> identify which cluster we are poining now.
+in the below image you can see "*" symbol it will represent current cluster you are using. Avinash_T means this IAM user using this cluster or this user have permissions on this cluster.
+![alt text](.images/Context.png)
+
+
+Add friendly name to the clusters:
+
+aws eks update-kubeconfig --region ap-south-1 --name ekswithavinash --alias dev-cluster
+
+aws eks update-kubeconfig --region ap-south-1 --name ekswithavinash-uat --alias uat-cluster
+
+kubectl config use-context dev-cluster			--> Switch to Dev-cluster 
+
+
+kubectl --context=uat-cluster get pods -n kube-system	--> Run commands without switching / temp
+
+kubectl --context=dev-cluster get pods -n kube-system	--> Run commands without switching / temp
+
+
+--
+
+Set default namspace for a context (no need to pass "-n uat-namespace" after this config)
+
+kubectl config set-context dev-cluster --namespace=uat-namespace
+
+--
+
+kubectl config rename-context dev-name-context dev-new-name-context
+
+---
+
+To cleanup a context:
+
+kubectl config delete-context ekswithavinash
+
+kubectl config delete-cluster ekswithavinash
+
+kubectl config delete-user ekswithavinash
+
+
+kubeconfig file structure:
+
+
+current-context: dev-cluster		--> active context
+
+clusters:
+	- name: dev-cluster
+		cluster:
+			server: https://djskfgsdjhg.region.eks.amazon.com
+			cert-authory-data: djkghdfjgdfjgfdj
+	
+	- name: uat-cluster
+		cluster:
+			server: https://djskfgsdjhg.region.eks.amazon.com
+			cert-authory-data: djkghdfjgdfjgfdj
+
+----
+
+**IMP:** if you want access the eks cluste from a new instance or laptop 
+EX: for new ec2 instance 
+1. create a role with eks access(we can create a role with empty policy as well anyway we are attaching policy while attaching this role to eks cluster in access tab) and attach that role to new ec2 instance 
+2. in eks click on cluster in the below you can see access tab click on it and click on create select cluster or namespace add the role we attached to ec2 and attach the "EKSclusteradminpolicy" 
+3. login in to ec2 instance install kubectl and add context then you can access the cluster.
+ 
+aws eks update-kubeconfig --region ap-south-1 --name ekswithavinash --alias dev-cluster
+
+
+AWS EKS access works in 2 layers
+
+Layer 1 : AWS IAM : Can this IAM identity Reach the eks API Server.?
+
+layer 2 : K8s RBAC : Once inside, what can this identity do.?
+
+
+---
+
+aws-auth configmap : IAM roles/users mapped inside a k8s config map. (eks cluster version < 1.30)
+
+EKS Access Entries : IAM Users/roles mapped via aws api/console. *Recommended
+
+
+--
+
+AmazonEKSAdminPolicy : Provides only workload management, DOnt provide eks node management.
+AmazonEKSClusterAdminPolicy : Workload access and node access also.
+
+---
+
+
+kubectl auth can-i get pods --> if output "yes" we can access pods if output is "No" we can't access pods.
+
+kubectl auth can-i get nodes
+
+kubectl auth can-i delete pods
+
+kubectl auth can-i --list  --> it will give what actions you can do with current permissions.
+
+
+=====================
+
+## Cloud watch Observability for EKS:
+
+Observability / o11y : 
+
+What is happening.?   -> Metrics (numbers, graphs)
+Why is it happening.? -> Logs   (text record of an event)
+Where did it break.?  -> Traces (request flow across services)
+
+1. Select the EKS Node's IAM role and attach "CloudWatchAgentServerPolicy"
+
+eksctl create addon --name amazon-cloudwatch-observability --cluster ekswithavinash --region ap-south-1
+
+Component 1 : CW Agent : runs as a daemon in every single node. (Node & pod & container level metrics)
+
+Component 2 : FLuent Bit : A lightweight log processor, THis also run as daemonset. 
+
+Component 3 : cloudwatch controller manager : manages the cw agent configuration and status.
+
+---
+
+CW o11y agent helps with 4 types of logs.
+
+/aws/containerinsights/<cluster-name>/application : Displays everything about applicvation containers (console.log / print / logger.info / logger.error) from pod.
+
+/aws/containerinsights/<cluster-name>/dataplane : logs from k8s system components running on worker nodes. (kubelet, kube-proxy, containerd)
+
+/aws/containerinsights/<cluster-name>/host : THis contains system level logs from thr ec2 worker nodes. 
+
+/aws/containerinsights/<cluster-name>/performance : perf of node and pod, container logs.. 
