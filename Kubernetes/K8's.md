@@ -1404,7 +1404,9 @@ http://<instance-public-ip>:8001
 
 ArgoCD : 
 
+```sh 
 eksctl utils associate-iam-oidc-provider --region ap-south-1 --cluster ekswithavinash --approve
+```
 
 its a GitOps continuous delivery tool for K8s. It watches git repo and automatically keeps your cluster in sync with git.
 
