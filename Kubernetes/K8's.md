@@ -1204,3 +1204,442 @@ CW o11y agent helps with 4 types of logs.
 /aws/containerinsights/<cluster-name>/host : THis contains system level logs from thr ec2 worker nodes. 
 
 /aws/containerinsights/<cluster-name>/performance : perf of node and pod, container logs.. 
+
+
+# Prometheus & Grafana:
+
+### Configured Alerts:
+- **🚨 Critical**: Pod crashes, restarts → #webhook-test
+- **⚠️ Warning**: Pod not ready, replica mismatches → #webhook-test
+- **📢 Default**: General alerts → #webhook-test
+
+### Alert Types:
+1. **PodCrashLooping** - When pods restart (Critical)
+2. **PodNotReady** - When pods stay not ready >5min (Warning)  
+3. **DeploymentReplicasMismatch** - When replicas don't match (Warning)
+
+---
+
+## Create namespace
+kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+--> "-" this synbol at the end of the above command means read from standard input.
+
+## Add Helm repository
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+
+## Add EBS CSI Driver
+
+eksctl create addon --name aws-ebs-csi-driver --cluster ekswithavinash --force
+
+## Deploy monitoring stack
+helm install --install prometheus-stack prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --values values.yaml
+
+## Wait for pods to be ready
+echo "⏳ Waiting for Prometheus to be ready..."
+kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus -n monitoring --timeout=300s
+
+## Apply custom alerts
+kubectl apply -f k8s-alerts.yaml
+
+
+=======
+
+
+## Create test namespace
+kubectl create namespace alert-test --dry-run=client -o yaml | kubectl apply -f -
+
+## Creating crash loop pod (will trigger critical alert)...
+kubectl run crash-pod --image=busybox --restart=Always -n alert-test -- sh -c "exit 1"
+
+## Creating deployment with replica mismatch...
+kubectl create deployment test-app --image=nginx --replicas=3 -n alert-test
+kubectl patch deployment test-app -n alert-test -p '{"spec":{"template":{"spec":{"containers":[{"name":"nginx","image":"nginx:invalid-tag"}]}}}}'
+
+## Creating normal deployment...
+kubectl create deployment working-app --image=nginx --replicas=2 -n alert-test
+
+## Creating service...
+kubectl expose deployment working-app --port=80 --name=test-service -n alert-test
+
+=====
+
+## EKS Fargate and Auto mode
+
+fargate : There are no ec2 instances to provision, patch or scale. AWS runs our pods on micro-VMs.
+
+--> Daemonset won't support
+--> Can't run GPU workload
+--> Can't use EBS volume, for storage, we can use EFS
+--> SSH to Node is not possible
+--> Max Pod Size 16 vCPU, 120 GB RAM
+--> uses cold start, Pod takes 30-90 seconds (new pod / existing scaling)
+--> No compliance with pci-dss, hipaa, fedramp and soc2
+
+--> Dev/test, batch jobs, Cron jobs.. 
+
+Step 1 : Create cluster with fargate compatable
+eksctl create cluster --name ekswithavinash-fg --version 1.34 --fargate
+
+Step 2 : Create a fargate profile for spacific namespaces. it is used to deploy our workload(yaml manifests).
+
+eksctl create fargateprofile --cluster ekswithavinash-fg --name webapp-fg --namespace webapp
+
+after running above command we will create a namespace "webap" and deploy our applications there.
+**Note:** we need to mention resource request and limit in deployment file for our pods if we didn't mention pods will not deploy. because we don't have nodes(we can't able to see nodes in ec2 we are not managing) in fargate it is charges according to how much resource we use.
+
+
+======
+
+EKS Auto Mode : 
+--> Compute autoscaling is configured in-built
+--> pod and servcie network is in-built
+--> application load balancer
+--> EBS compatable
+--> automatically deletes workloads if they are not using or not active
+
+It uses karpenter for cluster autoscaling.
+Auto mode picks instances automatically. 
+AWS combines spot and on-demand instances in auto mode.
+we use nodepool yaml file to tell which instances it going to pick.
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: general-purpose
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: eks.amazonaws.com
+        kind: NodeClass
+        name: default
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot", "on-demand"]   #here we are telling karpenter to prefer Spot first if not available, fallback to On-Demand
+        - key: kubernetes.io/arch 
+          operator: In
+          values: ["amd64"]
+        - key: eks.amazonaws.com/instance-category
+          operator: In
+          values: ["c", "m", "r"]         # compute, memory, memory-optimised families
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 1m                  # terminate idle nodes after 1 minute
+  limits:
+    cpu: "1000"                           # max total CPU across all Auto Mode nodes
+    memory: "4000Gi"
+```
+
+--> Traditional cluster autoscaling required manual configurations. (instal + cluster autoscaler configuration)
+--> AWS picks right sized instances automatically
+
+
+eksctl create cluster --name ekswithavinash --version 1.34 --region ap-south-1 --zones ap-south-1a,ap-south-1b --enable-auto-mode
+
+
+## Minikube
+
+minikube : Its a single node k8s cluster runs on our laptop inside a docker container. it uses docker driver to setup nodes.
+By default, Minikube uses Docker to spin up a specialized container called kic-base. This container acts as an entire virtual Kubernetes node.
+
+
+    2  sudo dnf install docker -y
+    3  sudo systemctl start docker
+    4  sudo systemctl enable docker
+    5  sudo usermod -aG docker ec2-user
+    6  newgrp docker
+
+
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+chmod +x kubectl
+mkdir -p ~/.local/bin
+mv ./kubectl ~/.local/bin/kubectl
+
+
+curl -LO https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
+
+minikube version
+
+minikube start --driver=docker
+
+minikube config set driver docker
+
+minikube start --driver=docker --cpu=2 --memory=4096 --disk-size=20g
+
+minikube start
+minikube stop
+minikube delete
+minikube delete && minikube start 
+
+minikube status
+minikube logs
+minikube ip
+
+kubectl port-forward --address 0.0.0.0 svc/nginx-svc 8080:80 -n webapp
+
+http://instance-ip:8080/
+
+
+
+--
+
+minikube dashboard
+
+kubectl proxy --address='0.0.0.0' --disable-filter=true
+
+http://<instance-public-ip>:8001
+
+# ArgoCD
+
+
+ArgoCD : 
+
+eksctl utils associate-iam-oidc-provider --region ap-south-1 --cluster ekswithavinash --approve
+
+its a GitOps continuous delivery tool for K8s. It watches git repo and automatically keeps your cluster in sync with git.
+
+
+Git repo (Source of Truth)
+ArgoCD watches for changes (every 3 min)
+Detect drift between git state and cluster state
+sync the cluster to match git sessings - automatically / Manually.
+
+
+Argo Architecture:
+
+ArgoCD
+
+API Server 		--> UI / CLI / CI requests
+Repo Server 	--> clones + render manifest
+App Controller 	--> compares + sync
+Redis 			--> Caching
+
+
+Application : links gitrepo path to a target cluster and namespace.
+
+
+Install : 
+kubectl create namespace argocd
+kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+
+kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+
+**Note:** while creating Application name in argocd while selecting auto sync we need select 3 options(Enabe-autosync, selfheal, prune resource). in sync options select AUTO-CREATENAMESPACE if namespace mentioned in yaml manifest is not available it will automatically create that namespace. in "prune propagation policy" we will select foreground(if we delete a resource it will not delete until it's dependent resource is deleted) and replace(old one removed new one added) options
+
+--> at the top click on "History and Rollback" option if you want to roll back previoud version at the top right of every History you find 3 dots click on that you will see rollback option.
+---
+
+the below code is used to tell argocd to ignore changes from replica(means anyone the change the replica count form 3 to 4 argocd don't change that count it ignores.)
+
+previously we configured the repo and other details manually using below manifest we can automate application creation process in argocd.  
+
+```yaml 
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-org/your-repo # where is 
+    targetRevision: main
+    path: k8s/nginx
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dev
+  syncPolicy:
+    automated:
+      prune: true        # delete resources removed from Git
+      selfHeal: true     # revert manual kubectl changes
+    syncOptions:
+      - CreateNamespace=true
+
+  # the below code is used to tell argocd to ignore changes from replica(means anyone the change the replica count form 3 to 4 argocd don't change that count it ignores.)
+
+      # ignoreDifferences:
+      # - group: app
+      #  kind : Deployment
+      #  jsonPointers:
+      #   - /spec/replicas
+```
+
+## Argo Rollouts
+
+it is used control the Deployment strategies like if we are deploying new version of app first we need to deploy 25% of current workload then we will pass for 3 minutes( if we have 4 replicas it will create one replica and it wait for 3 min) it pause and create other 50% and then 100% using argo rollout we can achieve this. it is suitable for canary and blue-green strategies.
+
+1) Install Argo Rollouts controller into your EKS cluster
+
+kubectl create namespace argo-rollouts
+kubectl apply -n argo-rollouts -f \
+  https://github.com/argoproj/argo-rollouts/releases/latest/download/install.yaml
+
+Verify the controller is running:
+
+kubectl -n argo-rollouts get pods
+kubectl get crd | grep rollouts
+
+---
+
+2) Install the kubectl-argo-rollouts plugin (macOS)
+
+brew install argoproj/tap/kubectl-argo-rollouts
+
+---
+
+kubectl argo rollouts dashboard
+
+# opens UI at http://localhost:3100
+
+![alt text](.images/Argo_rollout.png)
+
+
+=======
+
+kubectl apply -f aws-rollout.yaml
+
+```yaml
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-stable
+spec:
+  selector:
+    app: demo
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-canary
+spec:
+  selector:
+    app: demo
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: demo-stable
+            port:
+              number: 80
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: demo-rollout
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: demo
+  template:
+    metadata:
+      labels:
+        app: demo
+    spec:
+      containers:
+      - name: demo
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+
+  strategy:
+    canary:
+      stableService: demo-stable
+      canaryService: demo-canary
+      trafficRouting:
+        alb:
+          ingress: demo-ingress
+          servicePort: 80
+      steps:
+      - setWeight: 25
+      - pause: { duration: "3m" }
+      - setWeight: 50
+      - pause: { duration: "3m" }
+      - setWeight: 100
+```
+
+verify the status in localhost page..
+
+Verify the status..
+kubectl argo rollouts get rollout demo-rollout --watch
+
+
+update the nginx to new version...
+kubectl argo rollouts set image demo-rollout demo=nginx:1.25.2
+
+
+kubectl argo rollouts set image demo-rolling-rollout demo=nginx:1.25.2
+
+
+
+
+Promote early : kubectl argo rollouts promote demo-rollout
+
+rollback manually : kubectl argo rollouts abort demo-rollout
+
+
+
+=======
+
+Progressive Delivery : It enables gradually rolling out updates to a progressively larger subset of users, limiting the potential negative impact if something goes wrong.
+
+Update Strategies: It provides advanced update strategies like blue-green and canary deployments, integrating with service meshes and ingress controllers to safely shift traffic.
+
+Automated Analysis and Rollback: Argo Rollouts queries metric providers to perform analysis on updates. Based on these metrics, it can automatically promote a rollout to a new version or roll back to a stable version if issues are detected.
+
+Custom Resources:
+Rollout Custom Resource: A drop-in replacement for a Kubernetes Deployment, offering blue-green and canary strategies, and managing traffic shaping.
+
+Analysis Custom Resource: Defines how to perform analysis, including metrics to measure, when to measure them, and how to interpret the results (2:16-2:32).
+
+Demo of Argo Rollouts in Action:
+The demo showcases a canary strategy with Istio traffic routing.
+
+Initial State (2:53): The application is running revision 1 (blue version), with 100% of traffic directed to the stable version.
+
+Update Process (4:38): The image is changed to a yellow version. The controller spins up the new version, initially directing 10% of traffic to the canary (yellow) version and pausing indefinitely.
+
+Metric Analysis (5:32): An analysis run is initiated, using Prometheus to query the success rate (non-500 requests / total requests) at 20-second intervals. If the success rate drops below 90%, the analysis fails (5:50-6:24).
+
+Rollback on Error (6:52): Errors are injected into the yellow backend. The next measurement detects a success rate below 90%, causing the analysis to fail, the new replica set to scale down, and the rollout to degrade, automatically rolling back to the stable blue version (6:52-8:14).
+
+Key Integrations:
+Argo Rollouts integrates with various common service meshes and ingress controllers (8:22-8:30), although their use is optional for canary and blue-green updates (8:30-8:38). It also integrates with common metric providers and allows for custom metric providers or Kubernetes jobs for analysis (8:41-8:55).
+
