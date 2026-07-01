@@ -1,0 +1,10 @@
+name: running my first GHA Pipeline
+
+on: push
+
+jobs:
+  print-msg:
+    runs-on: ubuntu-latest
+    steps:
+      - name: first stage
+        run: echo "this is my First step in GHA pipeline"

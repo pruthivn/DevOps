@@ -1441,10 +1441,8 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 **Note:** while creating Application name in argocd while selecting auto sync we need select 3 options(Enabe-autosync, selfheal, prune resource). in sync options select AUTO-CREATENAMESPACE if namespace mentioned in yaml manifest is not available it will automatically create that namespace. in "prune propagation policy" we will select foreground(if we delete a resource it will not delete until it's dependent resource is deleted) and replace(old one removed new one added) options
 
---> at the top click on "History and Rollback" option if you want to roll back previoud version at the top right of every History you find 3 dots click on that you will see rollback option.
+ At the top click on "History and Rollback" option if you want to roll back previoud version at the top right of every History you find 3 dots click on that you will see rollback option.
 ---
-
-the below code is used to tell argocd to ignore changes from replica(means anyone the change the replica count form 3 to 4 argocd don't change that count it ignores.)
 
 previously we configured the repo and other details manually using below manifest we can automate application creation process in argocd.  
 
