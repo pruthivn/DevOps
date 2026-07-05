@@ -37,45 +37,16 @@ Terraform RPC : Remote Procedure Calls : Terraform RPC is the network pipe that 
 
 ![alt text](.images/image.png)
 
-graph TD
-    %% Define Styles and Colors
-    classDef core fill:#5C4EE5,stroke:#333,stroke-width:2px,color:#fff;
-    classDef rpc fill:#E6E6FA,stroke:#5C4EE5,stroke-width:2px,stroke-dasharray: 5 5,color:#000;
-    classDef plugin fill:#FFF2CC,stroke:#D6B656,stroke-width:2px,color:#000;
-    classDef cloud fill:#D5E8D4,stroke:#82B366,stroke-width:2px,color:#000;
-
-    %% Main Architecture Elements
-    subgraph Engine [Management Layer]
-        A[Terraform Core]:::core
-    end
-
-    subgraph Transport [Network Layer]
-        B[Local gRPC Interface / Port]:::rpc
-    end
-
-    subgraph Extensions [Translation Layer]
-        C[Provider Plugin Binary]:::plugin
-    end
-
-    subgraph Infrastructure [Target Layer]
-        D[Cloud Provider API]:::cloud
-    end
-
-    %% Execution and Communication Flow
-    A -->|1. Spawns process & establishes handshake| C
-    A -->|2. Sends abstract 'ApplyResourceChange'| B
-    B --> C
-    C -->|3. Translates to Vendor SDK / HTTPS Call| D
-    D -->|4. Returns Raw JSON/XML Response| C
-    C -->|5. Sends structured 'ApplyResourceChange' Response| B
-    B --> A
-    A -->|6. Writes output data| E[(terraform.tfstate)]:::core
-
-    %% Layout hints
-    style Engine fill:none,stroke:none;
-    style Transport fill:none,stroke:none;
-    style Extensions fill:none,stroke:none;
-    style Infrastructure fill:none,stroke:none;
+[ Terraform Core ]  --- 1. RPC Request ("Create this VPC") --->  [ AWS Plugin Binary ]
+                                                                        |
+                                                                2. Converts to AWS API
+                                                                        |
+                                                                        ▼
+                                                                  [ AWS Cloud ]
+                                                                        |
+                                                                3. Returns Response
+                                                                        |
+[ Terraform Core ]  <--- 4. RPC Response ("VPC ID is vpc-123") --  [ AWS Plugin Binary ]
 
 
 ---
