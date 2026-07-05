@@ -38,17 +38,29 @@ Terraform RPC : Remote Procedure Calls : Terraform RPC is the network pipe that 
 ![alt text](.images/image.png)
 
 ```mermaid
-flowchart LR
-  Core[Terraform Core]
-  Plugin[AWS Plugin Binary]
-  Cloud[AWS Cloud]
+graph TD
+    subgraph Core_Domain [Terraform Application Boundary]
+        Core[Terraform Core]
+    end
 
-  Core -->|RPC request| Plugin
-  Plugin -->|Convert to AWS API| Cloud
-  Cloud -->|Return response| Plugin
-  Plugin -->|RPC response| Core
+    subgraph Provider_Domain [Plugin Binary Boundary]
+        Plugin[AWS Plugin Binary]
+    end
+
+    subgraph Cloud_Domain [Target Infrastructure]
+        AWS[AWS Cloud]
+    end
+
+    Core -->|1. RPC Request: 'Create this VPC'| Plugin
+    Plugin -->|2. Convert to AWS API Call| AWS
+    AWS -->|3. Return API Response| Plugin
+    Plugin -->|4. RPC Response: 'VPC ID vpc-123'| Core
+
+    style Core fill:#5C4EE5,stroke:#333,stroke-width:2px,color:#fff
+    style Plugin fill:#F8991D,stroke:#333,stroke-width:2px,color:#fff
+    style AWS fill:#232F3E,stroke:#333,stroke-width:2px,color:#fff
+    classDef default font-family:sans-serif,font-weight:bold;
 ```
-
 ---
 
 Windows terraform installation:
