@@ -1133,10 +1133,14 @@ clusters:
 
 ----
 
-**IMP:** if you want access the eks cluste from a new instance or laptop 
+**IMP:** if you want access the eks cluster from a new instance or laptop 
 EX: for new ec2 instance 
-1. create a role with eks access(we can create a role with empty policy as well anyway we are attaching policy while attaching this role to eks cluster in access tab) and attach that role to new ec2 instance 
+1. create a role with eks access(we can create a role with empty policy as well anyway(good to add the EKS describe policy in GHA got error) we are attaching policy while attaching this role to eks cluster in access tab) and attach that role to new ec2 instance 
+
+**Note:** if you get error while accessing cluster atleast add the EKS describepolicy sometimes our role required this while deploying app into EKS using github actions got access error it good to add the EKS describel policy to role.
+
 2. in eks click on cluster in the below you can see access tab click on it and click on create select cluster or namespace add the role we attached to ec2 and attach the "EKSclusteradminpolicy" 
+
 3. login in to ec2 instance install kubectl and add context then you can access the cluster.
  
 aws eks update-kubeconfig --region ap-south-1 --name ekswithavinash --alias dev-cluster

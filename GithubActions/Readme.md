@@ -226,7 +226,9 @@ jobs:
 ## Variables
 
 workflow variables : $NAME, $VAR_NAME
+
 we can define workflow varibales like above for varables stored in github we use below format.
+
 Config Varibales : ${{ vars.VAR_NAME }}
 
 **Note:** varaible precedence in workflow level:  steplevel > joblevel > workflowlevel
@@ -560,7 +562,7 @@ jobs:
     secrets: inherit
 ```
 ## SonarQube
-step-1: Goto sonarqube official website and login to sonarqube it ask repositry access give and after that it will username and key this key is very important see the below image. best practice is use username as key as well.
+step-1: Goto sonarqube official website and login to sonarqube it ask repositry access give and after that it will show username and key this key is very important see the below image. best practice is use username as key as well.
 ![alt text](.images/sonar.png)
 
 step-2: goto github settings on left click on Applications and install sonarqube cloud and configure it.
@@ -568,26 +570,8 @@ step-2: goto github settings on left click on Applications and install sonarqube
 step-3: after configuration you see analyse new repositry click on it it will show all your repo's select the repo after that it will perform sonar analysis on that repo.
 
 Step-4: Create a token in sonarqube(goto your profile on leftpane click on Access tokens generate token) add that token in gitub secrets.
+
 step-5: create a sonar-project.properties in git repo it look like below code
-
-**Errors:** 
-1. if you see the error "master branch is not analysed" 
-**Resolution:** on leftpane click on branches you see 2 branches name master and main delete the main branch and rename the master branch into main branch then it will analyse the your repo.
-Error:
-![alt text](.images/sonar_error.png)
-
-2. if you see this error in ci pipeline " ERROR You are running CI analysis while Automatic Analysis is enabled. Please consider disabling one or the other." turn off the automatic analysis in sonarcloud.
-
-Error:
-![alt text](.images/sonar_ci_error.png)
-
-**Resolution:**
-if you not see the automatic as shown in image go to "other ci tools" option there you can find.
-![alt text](.images/sonar_auto.png)
-**Note:**
-sonar.projectKey=githubusername_Reponame
-sonar.organization=githubusername
-sonar.projectName=Reponame
 
 ```yaml
 # ─────────────────────────────────────────────
@@ -617,6 +601,32 @@ sonar.python.coverage.reportPaths=coverage.xml
 # Python version
 sonar.python.version=3.11
 ```
+
+
+**Errors:** 
+1. if you see the error "master branch is not analysed" 
+
+**Resolution:** on leftpane click on branches you see 2 branches name master and main delete the main branch and rename the master branch into main branch then it will analyse the your repo.
+
+Error:
+![alt text](.images/sonar_error.png)
+
+2. if you see this error in ci pipeline " ERROR You are running CI analysis while Automatic Analysis is enabled. Please consider disabling one or the other." turn off the automatic analysis in sonarcloud.
+
+Error:
+![alt text](.images/sonar_ci_error.png)
+
+**Resolution:**
+if you not see the automatic as shown in image go to "other ci tools" option there you can find.
+![alt text](.images/sonar_auto.png)
+
+**Note:**
+sonar.projectKey=githubusername_Reponame
+
+sonar.organization=githubusername
+
+sonar.projectName=Reponame
+
 sonar yaml code
 
 ```yaml
@@ -816,6 +826,118 @@ jobs:
 ```
 =================
 
-ECS End to end pipeline : 
+## ECS End to end pipeline : 
 
 https://github.com/avizway1/awar07-gha-demo-uat
+
+my own repo:
+https://github.com/pruthivn/GHA_ECS_pipeline.git
+
+## slack webhook for notification.
+1. Create webhook from slack(goto channels click on integration add apps search for webhook click on incoming webhook click on configure(if you not installed it will install) click on edit you webhookurl copy the url and store in github secrets.)
+
+2. Store that in git repo secrets.
+
+```yaml
+name: Reusable - Slack Notification
+
+on:
+  workflow_call:
+    inputs:
+      status:
+        description: "Overall pipeline status: success | failure | cancelled"
+        required: true
+        type: string
+      pipeline-name:
+        description: "Display name of the pipeline"
+        required: false
+        type: string
+        default: "CI/CD Pipeline"
+      environment:
+        description: "Environment that was deployed (leave empty if no deploy ran)"
+        required: false
+        type: string
+        default: ""
+    secrets:
+      SLACK_WEBHOOK_URL:
+        required: true
+
+jobs:
+  notify:
+    name: Notify Slack
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ inputs.status == 'success' && ':white_check_mark:' || inputs.status == 'failure' && ':x:' || ':warning:' }} *${{ inputs.pipeline-name }}* — ${{ inputs.status }}${{ inputs.environment != '' && format(' ({0})', inputs.environment) || '' }}",
+              "attachments": [
+                {
+                  "color": "${{ inputs.status == 'success' && '#2eb886' || inputs.status == 'failure' && '#cc0000' || '#e8a400' }}",
+                  "fields": [
+                    { "title": "Repository",   "value": "${{ github.repository }}", "short": true },
+                    { "title": "Branch",        "value": "${{ github.ref_name }}",  "short": true },
+                    { "title": "Triggered by",  "value": "${{ github.actor }}",     "short": true },
+                    { "title": "Commit SHA",    "value": "${{ github.sha }}",       "short": true },
+                    {
+                      "title": "Run",
+                      "value": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>",
+                      "short": false
+                    }
+                  ]
+                }
+              ]
+            }
+```
+
+## EKS deployment with Github Actions
+
+1. add the EKS describe permissions to Github actions role and provide cluster access to that role by adding in EKS cluster access tab.
+
+
+```yaml
+name: Deploy to EKS
+
+on:
+  push:
+    branches: main
+  workflow_dispatch: 
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  aws-access:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout the code
+        uses: actions/checkout@v6
+      - name: configure aws credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: GithubActions-EKS-Deploy
+      - name: Update the Kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
+      - name: verify EKS Nodes
+        run: |
+          kubectl get nodes
+          echo "Testing kubectl to fetch nodes"
+      - name: Deploy manifest to EKS
+        run: | 
+          kubectl apply -f k8s/ --namespace=${{ secrets.EKS_NAMESPACE }}
+      - name: verify rollouts
+        run: | 
+          kubectl rollout status deployment --namespace=${{ secrets.EKS_NAMESPACE }} --timeout=120s
+      - name: verify pods
+        run: | 
+          kubectl get pods -n ${{ secrets.EKS_NAMESPACE }}
+```
