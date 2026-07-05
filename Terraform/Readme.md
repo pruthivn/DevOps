@@ -43,10 +43,10 @@ flowchart LR
   Plugin[AWS Plugin Binary]
   Cloud[AWS Cloud]
 
-  Core -->|1. RPC Request<br/>"Create this VPC"| Plugin
-  Plugin -->|2. Converts to AWS API| Cloud
-  Cloud -->|3. Returns Response| Plugin
-  Plugin -->|4. RPC Response<br/>"VPC ID is vpc-123"| Core
+  Core -->|RPC request| Plugin
+  Plugin -->|Convert to AWS API| Cloud
+  Cloud -->|Return response| Plugin
+  Plugin -->|RPC response| Core
 ```
 
 ---
