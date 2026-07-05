@@ -315,6 +315,7 @@ Step 1 : create OIDC provider with below info.
 Navigate to IAM in AWS click on identity providers click on add provider and add the below values in provider url and auidence section. Make sure no Blank spaces on provider url section.
 
 provider: token.actions.githubusercontent.com
+
 audience: sts.amazonaws.com
 ![alt text](.images/image.png)
 
@@ -463,3 +464,358 @@ jobs:
       - name: Audit Dependencuies for known CVE
         run: pip-audit -r requirements.txt
 ```
+
+# Tools configuration
+
+## Git leaks
+
+using actions we can configure gitleaks in the code we use fetch_depth = 0 (by default it is "1") then only it will scan whole repo for secrets otherwise it will only scan latest commit.
+
+```yaml
+name: Secrets Scan
+
+on: [pull_request, push, workflow_dispatch]
+
+jobs:
+  scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # by default it is 1 only scans latest commit for secrets.
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE}} # Only required for Organizations, not personal accounts.
+```
+
+## Trivy & Dockerhub Auth
+
+for Dockerhub access we need to create a token from dockerhub and add that token in github secrets and create a dockerhub username variable in repo env vars.
+
+```yaml
+jobs:
+  docker-build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6 
+        
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push to Docker Hub
+        uses: docker/build-push-action@v7
+        with:
+          push: true
+          tags: |  # pushing image with different tags we will use anyone of these recommended sha id.
+            ${{ vars.DOCKERHUB_USERNAME }}/github-actions-app:${{ github.ref_name }}
+            ${{ vars.DOCKERHUB_USERNAME }}/github-actions-app:latest
+            ${{ vars.DOCKERHUB_USERNAME }}/github-actions-app:${{ github.sha }}
+
+  image-scanner:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}        
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: '${{ vars.DOCKERHUB_USERNAME }}/github-actions-app:latest' #This is the image name with tag build and pushed to dockerhub
+          format: 'table'
+          exit-code: '0' # "0" is default means even if we find the critical or high CVE's we will proceed to next step marked a passed if we use "1" if we find vulnerabilites mentioned in servinity step marked as failed.
+          severity: 'CRITICAL,HIGH'
+          trivyignores: ${{ github.workspace }}/.trivyignore
+```
+**Note:** if we are calling this workflows as modules we are using secrets in the above module we need to tell main workflow to inherit the secrets see the below yml.
+using "inherit" to pass all secrets from the parent workflow to the called workflow.
+
+Parent workflow:
+```yml
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  call-build:
+    uses: ./.github/workflows/docker-build-push.yml
+    secrets: inherit # without this The called workflow can't able access any secrets, and authentication will fail
+
+  call-scan:
+    needs: call-build
+    uses: ./.github/workflows/image-scanner.yml
+    secrets: inherit
+```
+## SonarQube
+step-1: Goto sonarqube official website and login to sonarqube it ask repositry access give and after that it will username and key this key is very important see the below image. best practice is use username as key as well.
+![alt text](.images/sonar.png)
+
+step-2: goto github settings on left click on Applications and install sonarqube cloud and configure it.
+
+step-3: after configuration you see analyse new repositry click on it it will show all your repo's select the repo after that it will perform sonar analysis on that repo.
+
+Step-4: Create a token in sonarqube(goto your profile on leftpane click on Access tokens generate token) add that token in gitub secrets.
+step-5: create a sonar-project.properties in git repo it look like below code
+
+**Errors:** 
+1. if you see the error "master branch is not analysed" 
+**Resolution:** on leftpane click on branches you see 2 branches name master and main delete the main branch and rename the master branch into main branch then it will analyse the your repo.
+Error:
+![alt text](.images/sonar_error.png)
+
+2. if you see this error in ci pipeline " ERROR You are running CI analysis while Automatic Analysis is enabled. Please consider disabling one or the other." turn off the automatic analysis in sonarcloud.
+
+Error:
+![alt text](.images/sonar_ci_error.png)
+
+**Resolution:**
+if you not see the automatic as shown in image go to "other ci tools" option there you can find.
+![alt text](.images/sonar_auto.png)
+**Note:**
+sonar.projectKey=githubusername_Reponame
+sonar.organization=githubusername
+sonar.projectName=Reponame
+
+```yaml
+# ─────────────────────────────────────────────
+# SonarCloud Project Properties
+# (Equivalent to -Dsonar.projectKey in your Jenkins Groovy)
+# ─────────────────────────────────────────────
+
+# Get these from SonarCloud dashboard after creating your project
+sonar.projectKey=pruthivn_GHA_practice # githubusername_Reponame
+sonar.organization=pruthivn            # githubusername
+
+sonar.projectName=GHA_practice         # Reponame
+sonar.projectVersion=1.0
+
+# Source code location (. = root of repo)
+sonar.sources=.
+
+# Exclude files you don't want scanned
+sonar.exclusions=**/__pycache__/**,**/*.pyc,**/migrations/**,**/tests/**
+
+# Test files location
+# sonar.tests=tests/
+
+# Coverage report (generated by pytest-cov in workflow)
+sonar.python.coverage.reportPaths=coverage.xml
+
+# Python version
+sonar.python.version=3.11
+```
+sonar yaml code
+
+```yaml
+name: SonarCloud Code Quality
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout your code
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Required by SonarCloud to analyse git history
+
+      # Step 2: Setup Python
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      # Step 4: Run tests with coverage
+      # exit code 5 = "no tests found" — we allow that so the scan still runs
+      - name: Run tests with coverage
+        run: |
+          pytest --cov=. --cov-report=xml --cov-report=term-missing || true
+
+      # Step 5: SonarCloud Scan
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v3
+        with:
+          args: >
+            -Dsonar.branch.name=main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   #Github provides automatically
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}     #Generate and store as secret in GHA
+```
+
+## ECR and ECS deplooyment with GHA
+
+
+region : ap-south-1
+repo : gha-ecrdeploy
+role : arn:aws:iam::655700896650:role/GHA-Role
+
+
+aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 655700896650.dkr.ecr.ap-south-1.amazonaws.com
+the above step was done by amazon-ecr-login action.
+
+docker build -t gha-ecrdeploy .
+
+docker tag gha-ecrdeploy:latest 655700896650.dkr.ecr.ap-south-1.amazonaws.com/gha-ecrdeploy:latest
+
+docker push 655700896650.dkr.ecr.ap-south-1.amazonaws.com/gha-ecrdeploy:latest
+
+
+echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
+we have step called login-ecr it will login into ecr and it contains some registry details and other info in form of output from that we are getting registry info and storing it as env variable see the below code.
+
+```yaml
+name: Reusable - Docker Build and Push to ECR
+
+on:
+  workflow_call:
+    inputs:
+      aws-region:
+        description: "AWS region where ECR is hosted"
+        required: false
+        type: string
+        default: "ap-south-1"
+    outputs:
+      image-uri:
+        description: "Full ECR image URI that was pushed (ACCOUNT.dkr.ecr.REGION.amazonaws.com/REPO:SHA)"
+        value: ${{ jobs.docker-build-push.outputs.image-uri }}
+
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  docker-build-push:
+      name: Build and push to ECR
+      runs-on: ubuntu-latest
+      needs: dockerfile-lint
+
+      outputs:
+        image-uri: ${{ steps.build-push.outputs.image-uri }}
+
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v4
+
+        - name: Configure AWS credentials (OIDC)
+          uses: aws-actions/configure-aws-credentials@v4
+          with:
+            aws-region: ${{ inputs.aws-region }}
+            role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+
+        - name: Login to Amazon ECR
+          id: login-ecr
+          uses: aws-actions/amazon-ecr-login@v2
+
+        - name: Build, tag and push to ECR
+          id: build-push
+          env:
+            ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+            ECR_REPOSITORY: ${{ secrets.ECR_REPO_NAME }}
+            IMAGE_TAG: ${{ github.sha }}
+          run: |
+            IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+            docker build -t "$IMAGE_URI" .
+            docker tag  "$IMAGE_URI" "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+
+            docker push "$IMAGE_URI"
+            docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+
+            echo "image-uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+```
+
+======
+
+region : ap-south-1
+repo : gha-ecrdeploy
+role : arn:aws:iam::655700896650:role/GHA-Role
+task def : my-gha-python
+ecs cluster : myecsdemo
+container name: mypythonapp
+ecs service name: my-gha-python-service-ly7a0301
+
+we need to store all above variables in github as secrets and env vars.
+
+
+aws ecs describe-task-definition \
+  --task-definition my-gha-python \
+  --query 'taskDefinition.containerDefinitions[].name'
+
+we need to download task definition file from ecs because we need to made a revision to add the new image name in task definition file.
+
+```yaml
+
+jobs:
+  deploy:
+    name: Deploy to ECS (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ inputs.aws-region }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Download current ECS task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "${{ secrets.ECS_TASK_DEF_NAME }}" \
+            --query taskDefinition \
+            --output json > task-def.json
+
+      - name: Inject new image URI into task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-def.json
+          container-name: ${{ secrets.ECS_CONTAINER_NAME }}
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPO_NAME }}:${{ github.sha }}
+
+      - name: Deploy to ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ secrets.ECS_SERVICE_NAME }}
+          cluster: ${{ secrets.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
+```
+=================
+
+ECS End to end pipeline : 
+
+https://github.com/avizway1/awar07-gha-demo-uat
