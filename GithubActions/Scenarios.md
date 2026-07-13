@@ -127,3 +127,63 @@ aws iam update-role \
     aws-region: us-east-1
     role-duration-seconds: 3600 # 1 hour (Default is 3600, max is 43200)
 ```
+
+## How to Deploy resources into different aws accounts?
+A. i will provide step by step approach for Central base role creation soon.
+
+```yaml
+name: Deploy Multi-Account Infrastructure
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write   # MANDATORY: Required to request the OIDC JWT token from GitHub
+  contents: read    # Required to checkout the source repository code
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to AWS Dev Account via OIDC Role Chaining
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # 1. Log into the Central Base Role via OIDC Web Identity
+          role-to-assume: arn:aws:iam::IDENTITY_ACCOUNT_ID:role/github-actions-base-execution-role
+          aws-region: us-east-1
+          
+          # 2. Chain directly into the Target Dev Account Role immediately
+          audience: sts.amazonaws.com
+          role-chaining: true
+          role-to-assume-cross-account: arn:aws:iam::DEV_ACCOUNT_ID:role/github-target-deployment-role
+
+      - name: Run Terraform for Dev
+        run: |
+          terraform init
+          terraform apply -auto-approve
+
+  deploy-prod:
+    runs-on: ubuntu-latest
+    needs: deploy-dev
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to AWS Prod Account via OIDC Role Chaining
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::IDENTITY_ACCOUNT_ID:role/github-actions-base-execution-role
+          aws-region: us-east-1
+          audience: sts.amazonaws.com
+          role-chaining: true
+          # Chains directly into the Production Account Role instead
+          role-to-assume-cross-account: arn:aws:iam::PROD_ACCOUNT_ID:role/github-target-deployment-role
+
+      - name: Run Terraform for Prod
+        run: |
+          terraform init
+          terraform apply -auto-approve
+```
