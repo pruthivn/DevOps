@@ -31,7 +31,7 @@ Terraform Core : The main orchestartion engine that performs above steps i.e; sc
 
 When we run terraform init we are downloading AWS and Azure providers these are standalone program files (plugins) lives inside separatly.
 
-terrform core can't talk directly with AWS/Azure providers directly that's why it uses RPC it is a network pipe between terraform core and AWS providers.
+**terrform core** can't talk directly with AWS/Azure providers directly that's why it uses **RPC** it is a network pipe between terraform core and AWS providers.
 
 Terraform RPC : Remote Procedure Calls : Terraform RPC is the network pipe that lets these Terraform core and AWS/Azure providers(plugins) talk to each other.
 
@@ -106,7 +106,7 @@ resource "aws_s3_bucket" "my_example_bucket" {
 
 ------
 
-terraform init : Initializes your working direcvtory. Downloads the required provider plugin based on the configuration file we have. 
+terraform init : Initializes your working directory. Downloads the required provider plugin based on the configuration file we have. 
 --> One time for a project
 
 "terraform init"
@@ -137,7 +137,7 @@ terraform apply : This creates or updates the resources in AWS. terraform shows 
 
 terraform apply
 
-skit the confirmation: 
+skip the confirmation: 
 
 terraform apply -auto-approve
 
@@ -152,12 +152,13 @@ terraform destroy -auto-approve
 -----
 
 terraform statefile : (terraform.tfstate) : 
+
 --> stores the mappings between terraform configuration and aws infrastructure real resources.
 --> Act as "source of truth" for tracking the current state.
 
 -----
 
-terraform target option : 
+**terraform target option :**
 
 --> The target flag is used to apply or destroy specific resources of the configuration. 
 
@@ -229,8 +230,9 @@ terraform plan -refresh-only
 
 1. Just detect the changes : terraform plan -refresh-only
 2. Accept the drift : terraform apply -refresh-only (someone made a valid change manually - you decided to accept the changes into state file)
-3. I dont accept the changes happened outside of tf : terraform apply
+3. I don't accept the changes happened outside of tf : terraform apply
 
+**Note:** Terraform will not delete the resource if we use **terraform apply** command because resources created outside are will not come under terraform control.
 ---
 
 Enable Debugging with terraform logs. 
@@ -279,7 +281,7 @@ terraform state show aws_s3_bucket.mys3demo
 
 terraform init -migrate-state 
 
-above command is use to migrate the state from locally to remote backend or other locations.
+above command is use to migrate the state from locally to remote backend or other locations. it will only migrate the contents in the state file after using this command you can see the state file but it will be empty.
 
 ```hcl
 
@@ -314,7 +316,9 @@ terraform {
 Remote backend : S3
 
 
-```sh terraform force-unlock ec967ad1-e3b0-a93c-19a7-15d9592921f3 ```
+```sh 
+terraform force-unlock ec967ad1-e3b0-a93c-19a7-15d9592921f3 
+```
 
 using above command we can remove the state file lock that id will see in console when we get statefile locked message.
 =============
@@ -401,6 +405,9 @@ terraform workspace delete dev
 ## profile
 if we want to deploy our servers in different account we can use profile directive in provider block before that we can configure profile using below command
 
+all the profile info stored in "~/.aws/credentials".
+
+
 ```sh 
 aws configure --profile profile_name
 # we can list profiles using below command
@@ -419,7 +426,347 @@ provider "aws" {
 }
 ```
 
+Modules : if infra grows, we endup with copy and pasting the same resource blocks multiple times at multiple levels. 
 
+.
+├── main.tf
+├── modules
+│   ├── ec2
+│   │   ├── main.tf
+│   │   ├── outputs.tf
+│   │   └── variables.tf
+│   └── s3
+│       ├── main.tf
+│       ├── outputs.tf
+│       └── variables.tf
+└── variables.tf
+
+```hcl
+module "local_vpc" {
+  source = "./modules/aws-vpc" # Relative path to your child folder
+  # Calling form a private repo, Requires your local environment or CI worker to have SSH key access
+  source =  "git@github.com:your-org/private-modules.git//modules/ec2-instance?ref=main"
+  # using official registry modules
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0.0" # Highly recommended to lock versions
+
+  vpc_cidr     = "10.0.0.0/16"
+  cluster_name = "production-mesh"
+}
+```
+## Dynamic blocking
+
+A dynamic block in Terraform is a construct used to programmatically generate repeated nested blocks within a single configuration. It acts like a for loop, iterating over a collection (list, set, or map) to build multi-item configurations without copying and pasting.
+
+Ex: Instead of manually copy-pasting three different ingress blocks for web ports, you can supply a list of configurations to a single dynamic block:
+
+```hcl
+locals {
+  service_ports = [
+    { port = 22,  desc = "SSH Access" },
+    { port = 80,  desc = "HTTP Web" },
+    { port = 443, desc = "HTTPS Secure Web" }
+  ]
+}
+
+resource "aws_security_group" "web_sg" {
+  name        = "web-traffic-rules"
+  description = "Dynamically generated web ingress rules"
+
+  dynamic "ingress" {
+    for_each = local.service_ports
+    
+    content {
+      description = ingress.value.desc
+      from_port   = ingress.value.port
+      to_port     = ingress.value.port
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+}
+```
+
+## Data block
+
+A data block in Terraform is used to fetch, read, or query information from APIs or resources that exist outside or inside of your current Terraform configuration.
+
+```hcl
+# 1. Define the AWS Provider
+provider "aws" {
+  region = "us-east-1"
+}
+
+# 2. Query the AWS API for the latest AMI ID
+data "aws_ami" "amazon_linux_2023" {
+  most_recent = true           # Picks the newest matching image version
+  owners      = ["amazon"]     # Filters only official Amazon-published images
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-2023.*-kernel-6.1-x86_64"] # Matches naming scheme
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+# 3. Reference the data block to create an EC2 Instance
+resource "aws_instance" "web_server" {
+  # References the fetched ID string from the data block above
+  ami           = data.aws_ami.amazon_linux_2023.id
+  instance_type = "t3.micro"
+
+  tags = {
+    Name = "Dynamic-AMI-Server"
+  }
+}
+
+# 4. Output the fetched ID to the terminal screen
+output "fetched_ami_id" {
+  value       = data.aws_ami.amazon_linux_2023.id
+  description = "The target Amazon Linux 2023 AMI ID fetched dynamically."
+}
+```
+
+## Providers
+Actually organisations follow n-1 appraoch means they use the provider version less than latest version(latest version is 6.1, they use previous version like 6.0) if one developer use latest and another one use different versions it will cause problems that's why we use specific provider version.
+
+we can also use specific terraform version as well see the below example.
+
+```hcl
+terraform {
+  required_version = ">= 1.5.0" # Good practice: lock the Terraform CLI version too
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "5.31.0" # Hard lock: Only allows this exact version
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+```
+
+**Note:** we will use object lock option in S3 bucket to ensure no one will delete the bucket.
+
+=========================
+
+terraform import : 
+
+We have 2 methods to import existing resources into terraform and we can track.
+
+
+CLI Import method 1:
+---
+
+Manually instance launched..  up and running
+
+--
+
+provider "aws" {
+  region = "ap-south-1"
+}
+
+resource "aws_instance" "existing_instance" {
+  ami = "ami-09ed39e30153c3bf9"
+  instance_type = "t3.micro"
+
+  tags = {
+    Name = "manual-instance"
+  }
+}
+
+----
+
+terraform import aws_instance.existing_instance i-06d76a954d74caebd
+
+-----
+This is a new approach, to import exiosting resources using a block (not cli)
+-----
+
+provider "aws" {
+  region = "ap-south-1"
+}
+
+import {
+  to = aws_instance.existing_instance
+  id = "i-06d76a954d74caebd"
+}
+
+resource "aws_instance" "existing_instance" {
+  ami = "ami-09ed39e30153c3bf9"
+  instance_type = "t3.micro"
+
+  tags = {
+    Name = "manual-instance"
+  }
+}
+
+=================
+1. String fucntions
+=================
+
+upper()
+lower()
+---
+
+locals {
+	env = "DEV"
+}
+
+resource "aws_s3_bucket" "existing_bucket" {
+  bucket = "avinash-s3-demo-${lower(local.env)}"
+}
+
+
+---
+
+format()
+
+locals {
+	bucket_name = format("myapp-%s-bucket-%s", "dev", "2026")
+	# --> myapp-dev-bucket-2026
+}
+
+---
+
+replace()
+
+replace("hello_world", "_", "-") 	#--> "hello-world"
+
+---
+
+split() and join()
+
+split ("," "dev,uat,prd") 			#--> ["dev","uat","prd"]
+
+join("-" "web,app,svr")				#--> "web-app-svr" 
+
+---
+
+trimspace()
+
+trimspace("  dev  " )				#--> "dev"
+
+======
+2. File functions:
+======
+
+file("/Users/avizway/Desktop/keypairs/awar08-kp.pem")
+
+Number functions:
+
+max(5, 12, 9)					#--> 12
+min(5, 12, 9)					#--> 5
+
+======
+3. Encoded functions
+======
+
+
+resource "aws_s3_bucket" "mybucket" {
+  bucket = "avinash-s3-demo"
+}
+
+resource "aws_s3_bucket_policy" "Public_read" {
+	bucket = aws_s3_bucket.mybucket.id
+	policy = jsonencode(
+	{
+	  "Version": "2012-10-17",
+	  "Statement": [
+	    {
+	      "Sid": "Statement1",
+	      "Effect": "Allow",
+	      "Principal": "*",
+	      "Action": [
+	        "s3:GetObject"
+	      ],
+	      "Resource": "${aws_s3_bucket.mybucket.arn}"
+	    }
+	  ]
+	}
+	)
+}
+
+=========
+4. Collection Functions
+=========
+
+toset(): Converts a list to a set (Removes the duplicates used with for_each)
+
+resource "aws_instance" "mywebserver" {
+  for_each = toset(["dev-server", "uat-server", "prd-server"])
+  ami           = "ami-01b40e1bcccae197a"
+  instance_type = "t3.micro"
+
+  tags = {
+    Name = each.key
+  }
+}
+
+---
+
+tolist()
+
+tolist(toset(["b","a", "c"]))	--> ["a", "b", "c"]
+tomap ({ name = "dev", env = "developement"})
+
+---
+
+concat()
+
+["dev", "uat"], ["prd", "dr"]
+
+concat(["dev", "uat"], ["prd", "dr"])			#--> ["dev", "uat", "prd", "dr"]
+
+
+
+=====================
+
+D: 18/05/2026
+
+## Sentinal Policies
+
+Sentinel is HashiCorp's native, embeddable Policy-as-Code framework. it is like scp in aws oraganisations.It establishes automated logic-based guardrails within HCP Terraform and Terraform Enterprise by actively evaluating code changes after a terraform plan but before a terraform apply.
+
+using this policy we can restrict users like if auser want to create a t3.medium instance using sentinal policy we can restrict that user to create only t3.micro not t3.medium.
+
+**Note:** these policies are mostly used in HCP terraform
+
+EX: in te below policy we are restricting to use only "t2.micro", "t3.micro".
+
+```hcl
+import "tfplan/v2" as tfplan
+
+# Filter all EC2 instances from the plan
+ec2_instances = filter tfplan.resource_changes as _, rc {
+    rc.type is "aws_instance" and
+    (rc.change.actions contains "create" or rc.change.actions contains "update")
+}
+
+# Rule: Restrict sizing to micro types
+allowed_sizes = ["t2.micro", "t3.micro"]
+instance_type_allowed = rule {
+    all ec2_instances as _, instance {
+        instance.change.after.instance_type in allowed_sizes
+    }
+}
+
+# Main enforcement block
+main = rule {
+    instance_type_allowed
+}
+```
+
+**Note:** if you want execute the terraform locally we need to change the execution mode settings in Hcp cloud UI from remote to local then in your local terminal pull the state file using "terrform state pull" and then run apply command it will work.
+
+https://app.terraform.io/login
 
 
 
