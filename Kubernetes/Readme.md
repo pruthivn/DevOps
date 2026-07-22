@@ -128,3 +128,9 @@ ArgoCD can be green while but your app is broken.
 3. i will look at P95 and P99 latency metrics in cloudwatch or grafana dashboards(we can als see in new relic) if any issue with this metrics i will use tracing tools like jaeger to identify the where the slowness like connectivity with database, an un-indexed database query, or a slow third-party API call.
 4. then i will check the load in server like apllication is consuming more memory using uptime, sar, top commands, then will check file descriptor limits if app hits the heavy traffic file descriptor limits reaches and it causes to network packets to stall(paused, dropped).
 
+### 4. Can the pod be OOM killed even without memory limit?
+A. yes without defining the resource quota and limit pod can oom killed because if the node runs out of memory it evicate the pods according Qos(quality of service).
+
+### 5. A node has a 32 GB RAM free But pod still reports OOM killed. Could you please explain what could be the reason for this?
+A. in pod we configured resuorce limits if the pod reaches this limit it will automatically OOM killed.
+

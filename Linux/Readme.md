@@ -201,10 +201,10 @@ A. **SWAP memory:** Swap memory is a disk space that Linux uses as an extension 
 
 **Buffer Memory:** Buffer memory is RAM used by the Linux kernel to temporarily store data during input/output operations, such as reading from or writing to disks. It helps reduce the number of direct disk accesses, improving I/O performance. Unlike application memory, buffer memory is automatically reclaimed by the operating system whenever applications need more RAM.
 
-### 12. Buffer v/s cache memory?
-A. Buffer: Temporary storage for data in transit (moving between devices). It holds data that hasn't been read or written yet.
+### 12. Buffer memory v/s cache memory?
+A. **Buffer memory:** Temporary storage for data in transit (moving between devices). It holds data that hasn't been read or written yet.
 
-Cache: Temporary storage for frequently accessed data to make future reads faster. It holds copies of data you already used, guessing you might need it again soon.
+**Cache:** Temporary storage for frequently accessed data to make future reads faster. It holds copies of data you already used, guessing you might need it again soon.
 
 ### 13. Explain RSS, VSG, and shared memory?
 A. **VSZ(Virtual Memory Size):** This is the total memory space a process *thinks* it has access to. It includes all code, libraries, and memory allocations requested via **malloc**, even if they haven't actually been written to or loaded into physical RAM yet. It is usually a massive, misleading number(a process allocates 1 GB of virtual memory doesn't mean it is actually using 1 GB).
@@ -256,3 +256,20 @@ fileds to watch in output:
 %util -  measures how much of the time the disk was doing at least one piece of work.
 
 await -  is the total time (in milliseconds) a single read or write request spends from the exact moment an application creates it, to the moment the disk completely finishes it.
+
+### 16. Can you give me some example to capture all the traffic in PCAP using tcpdump?
+A. TCPDump is a Linux command-line packet capture tool used to monitor and troubleshoot network traffic in real time.
+```sh 
+sudo tcpdump -i any -w capture.pcap
+```
+.pcap is standard file format to store network packets.
+
+-i any - captures traffic from all network interfaces
+
+-w capture.pcap saves the packets into a PCAP file
+
+the below command captures traffic from eth0
+```sh 
+sudo tcpdump -i eth0 -w capture.pcap
+```
+
