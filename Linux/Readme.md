@@ -170,7 +170,7 @@ Ex: we have parent process 100 fork() creates child process 101 child running ex
      │                                  │
      │ (waits for PID 5002)             ▼
   wait()                            exec("ls")
-     │                                  │  (Wipes memory/code,
+     │                                  │  (Wipes parent process memory/code,
      │                                  ▼   but retains PID 5002)
      │                             [Process: ls]
      │                             (PID: 5002)
@@ -179,31 +179,8 @@ Ex: we have parent process 100 fork() creates child process 101 child running ex
 Wakes up when PID 5002 exits ◄────── terminates
      │
      ▼
-Ready for next command
+parent starts
  (PID: 5001)
-```
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as User / OS
-    participant Parent as Parent Process: Shell<br/>(PID: 5001)
-    participant Child as Child Process: Clone<br/>(PID: 5002)
-
-    Parent->>Child: fork() [Creates Child Clone]
-    activate Parent
-    activate Child
-    Note over Parent: wait() [Parent Pauses]
-    
-    Child->>Child: exec("ls") [Overwrites Memory]
-    Note over Child: Process changes to 'ls'<br/>(Retains PID: 5002)
-    
-    Child->>User: Runs 'ls' & exits
-    deactivate Child
-    
-    Child-->>Parent: Sends exit signal
-    Note over Parent: Wakes up after PID 5002 finishes
-    Parent->>User: Ready for next command
-    deactivate Parent
 ```
 
 
