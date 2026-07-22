@@ -244,7 +244,7 @@ r -  Number of processes waiting for CPU time. A high number suggests a CPU bott
 b - Number of processes in uninterruptible sleep, usually waiting for disk or network I/O.
 wa - Time the CPU spent waiting for disk/network I/O to complete. High wa means slow disks.
 
-**iostat** is a storage-focused diagnostic tool that monitors system input/output device loadin.
+**iostat** is a storage-focused diagnostic tool that monitors system input/output device loading. using iostat we can check high fast disks are reading and writing now and also checks lag in this operations.
 
 ```sh
 iostat -x 2 5 # displays output every 2 seconds for 5 times
