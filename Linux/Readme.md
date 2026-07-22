@@ -37,7 +37,7 @@ Shell:
 
 ## Interview Questions form DigiCert
 
-### 1. suppose there is a server called VM1. I want to ping VM1 using Salt. How will I?
+### 1. suppose there is a server called VM1. I want to ping VM1 using **Salt**. How will I?
 A. Salt is a configuration management tool like Ansible.
 
 pinging VM1 server using salt
@@ -53,10 +53,17 @@ Agent-Based AND Agentless Flexibility, Unmatched Execution Speed, Event-Driven A
 ### 2. Tell me about SAR command?
 A. The sar command (System Activity Reporter) is a Linux/Unix utility used to collect, report, and save system activity information. It is part of the sysstat package.
 
-```sh 
-sar -r 
-```
+**syntax:** sar [options] [interval] [count]
 
+Below command displays the Memory and Swap utilization percentages for every second 3 times
+```sh 
+sar -r 1 3
+```
+**Imp:** if we want display usage for every 2 seconds for 5 times?
+
+```sh 
+sar 2 5
+```
 While tools like **top or htop** are great for seeing what is happening right now, sar is unique because it focuses on historical analysis and long-term trends
 
 **Advantages:**
@@ -125,3 +132,76 @@ ps -ef → Running processes
 journalctl and dmesg → System and kernel logs
 ```
 In production, I also use monitoring tools like Prometheus, Grafana, and CloudWatch to monitor servers, configure alerts, and analyze performance trends
+
+### 8. The root file system is unresponsive. How did you investigate that?
+A. To investigate an unresponsive root file system, safely drop into a system rescue mode or emergency shell.
+I first verify whether it's a disk I/O issue or if the filesystem mounted has become read-only.
+
+I start with:
+
+df -h to check disk space.
+df -i to verify inode usage.
+mount or cat /proc/mounts to check if the root filesystem is mounted as read-only.
+dmesg and journalctl -xe to look for filesystem, disk, or I/O errors.
+iostat -x 1 and vmstat 1 to check for high disk latency or I/O wait.
+lsblk and smartctl (if available) to verify disk health.
+
+If the filesystem is full, I identify large files using du -sh /* and clean up logs or unnecessary files. If there are filesystem corruption or hardware errors, I schedule an fsck during maintenance or replace the faulty disk if required."
+
+### 9. Could you please explain the difference between fork(), exec(), and wait()?
+A. "fork(), exec(), and wait() are Linux system calls used for process management.
+
+fork() creates a new child process by copying the parent process.
+exec() replaces the current process(means child process) with a new program. It does not create a new process; it reuses the existing process ID.
+wait() makes the parent process wait until the child process finishes execution, preventing zombie processes.
+
+A typical flow is: the parent calls fork(), the child calls exec() to run a new program, and the parent calls wait() until the child exits."
+
+Ex: we have parent process 100 fork() creates child process 101 child running exact same code/program as parent because child is clone of parent exec() is called inside the child remove the original code and runs the exec() code(ls -l) wait() makes the parent process wait until the child process finishes execution, preventing zombie processes.
+
+**Note:** it is never guranteed to pid 101 while creating child process any other  if another background service, cron job, or system thread forks a split second before or at the exact same time as your process, that other process will grab PID 101. Your child process would then get PID 102 or higher.
+
+[Parent Process: Shell]
+ (PID: 5001)
+     │
+     ▼
+  fork()  ───────────────────────► [Child Process: Clone of Shell]
+     │                              (PID: 5002)
+     │                                  │
+     │ (waits for PID 5002)             ▼
+  wait()                            exec("ls")
+     │                                  │  (Wipes memory/code,
+     │                                  ▼   but retains PID 5002)
+     │                             [Process: ls]
+     │                             (PID: 5002)
+     │                                  │
+     ▼                                  ▼
+Wakes up when PID 5002 exits ◄────── terminates
+     │
+     ▼
+Ready for next command
+ (PID: 5001)
+
+
+### 10. what is zombie and orphan process?
+A. **Zombie process** is a child process that has finished execution, but its entry still exists in the process table because the parent process has not yet collected its exit status using wait(). Zombie processes don't consume CPU or memory, but they occupy a process table entry.
+
+**Orphan process** is a process whose parent has terminated before it. The orphan process is automatically adopted by the init or systemd process (PID 1), which eventually cleans it up when it exits/completes."
+
+### 11. What is lsof command?
+A. The lsof command in Linux stands for "List Open Files". it is used to display list of all files currently opened by running processes on the system.
+
+The below command dispalys files opened/using by process id 1234
+```sh
+sudo lsof -p 1234
+```
+
+### 12. What is swap memory & Buffer memory?
+A. **SWAP memory:** Swap memory is a disk space that Linux uses as an extension of RAM. When RAM memory becomes full, inactive memory pages are moved from RAM to swap space to free up memory for active processes. Since swap resides on disk, it is much slower than RAM, so excessive swap usage can impact system performance. I usually monitor swap usage using commands like **free -h, swapon -s, and vmstat.**
+
+**Buffer Memory:** Buffer memory is RAM used by the Linux kernel to temporarily store data during input/output operations, such as reading from or writing to disks. It helps reduce the number of direct disk accesses, improving I/O performance. Unlike application memory, buffer memory is automatically reclaimed by the operating system whenever applications need more RAM.
+
+### 12. Buffer v/s cache memory?
+A. Buffer: Temporary storage for data in transit (moving between devices). It holds data that hasn't been read or written yet.
+
+Cache: Temporary storage for frequently accessed data to make future reads faster. It holds copies of data you already used, guessing you might need it again soon.
