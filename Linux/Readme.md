@@ -160,7 +160,7 @@ A typical flow is: the parent calls fork(), the child calls exec() to run a new 
 Ex: we have parent process 100 fork() creates child process 101 child running exact same code/program as parent because child is clone of parent exec() is called inside the child remove the original code and runs the exec() code(ls -l) wait() makes the parent process wait until the child process finishes execution, preventing zombie processes.
 
 **Note:** it is never guranteed to pid 101 while creating child process any other  if another background service, cron job, or system thread forks a split second before or at the exact same time as your process, that other process will grab PID 101. Your child process would then get PID 102 or higher.
-
+```text
 [Parent Process: Shell]
  (PID: 5001)
      │
@@ -181,6 +181,31 @@ Wakes up when PID 5002 exits ◄────── terminates
      ▼
 Ready for next command
  (PID: 5001)
+```
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User / OS
+    participant Parent as Parent Process: Shell<br/>(PID: 5001)
+    participant Child as Child Process: Clone<br/>(PID: 5002)
+
+    Parent->>Child: fork() [Creates Child Clone]
+    activate Parent
+    activate Child
+    Note over Parent: wait() [Parent Pauses]
+    
+    Child->>Child: exec("ls") [Overwrites Memory]
+    Note over Child: Process changes to 'ls'<br/>(Retains PID: 5002)
+    
+    Child->>User: Runs 'ls' & exits
+    deactivate Child
+    
+    Child-->>Parent: Sends exit signal
+    Note over Parent: Wakes up after PID 5002 finishes
+    Parent->>User: Ready for next command
+    deactivate Parent
+```
+
 
 
 ### 10. what is zombie and orphan process?
