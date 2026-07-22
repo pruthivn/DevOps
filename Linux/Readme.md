@@ -183,8 +183,6 @@ parent starts
  (PID: 5001)
 ```
 
-
-
 ### 10. what is zombie and orphan process?
 A. **Zombie process** is a child process that has finished execution, but its entry still exists in the process table because the parent process has not yet collected its exit status using wait(). Zombie processes don't consume CPU or memory, but they occupy a process table entry.
 
@@ -207,3 +205,54 @@ A. **SWAP memory:** Swap memory is a disk space that Linux uses as an extension 
 A. Buffer: Temporary storage for data in transit (moving between devices). It holds data that hasn't been read or written yet.
 
 Cache: Temporary storage for frequently accessed data to make future reads faster. It holds copies of data you already used, guessing you might need it again soon.
+
+### 13. Explain RSS, VSG, and shared memory?
+A. **VSZ(Virtual Memory Size):** This is the total memory space a process *thinks* it has access to. It includes all code, libraries, and memory allocations requested via **malloc**, even if they haven't actually been written to or loaded into physical RAM yet. It is usually a massive, misleading number(a process allocates 1 GB of virtual memory doesn't mean it is actually using 1 GB).
+
+**RSS (Resident Set Size):** RSS is the actual amount of physical RAM (in bytes) that a process is currently occupying right now. It tracks only the data that has been actively loaded or written into your physical RAM chips.It ignores swapped-out memory(means the kernel has pushed inactive memory out of physical RAM onto the hard disk to free up space) or unmapped virtual space.
+
+it is also a misleading number(means the displayed number will not tell how much memory that process is consuming) because If Process A and Process B both use the exact same system library (like libc.so), the size of that library is fully counted inside Process A's RSS and fully counted inside Process B's RSS. This brings us to the third concept shared memory.
+
+**SHR(Shared memory):** it represents parts of memory that are actively shared between multiple different running processes. if process requires a shared system libraries so linux load this into RAM exactly once that process are shared across all the processes.
+
+**Note:**(RSS - SHR) = true memory usage of a process or (single application using in a container).
+
+SHR \(\subset \) RSS \(\subset \) VSZ.
+
+### 14. explain the difference between ext4, XFS, and tmps?
+**ext4** is a general-purpose Linux file system that's reliable and commonly used for operating systems and standard workloads.
+
+**XFS** is a high-performance file system designed for large files and heavy I/O workloads. It's commonly used in enterprise servers and databases because it scales well.
+
+**tmpfs** is a memory-based file system that stores data in RAM instead of disk. It's very fast but temporary—its contents are lost after a reboot. It's commonly used for temporary files such as /tmp or shared memory."
+
+### 15. explain about iostat and vmstat?
+A. **vmstat** reports information about processes, memory, paging, block IO, traps, disks, and CPU activity. it is lightweight and consumes memory compares top command.
+```sh 
+ vmstat 2 5 # displays output every 2 seconds for 5 times
+```
+
+sample output of vmstat:
+```sh 
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 1  0      0 139252 284112 954128    0    0    12    45   55   98  2  1 96  1  0
+```
+fileds to watch in output.
+
+r -  Number of processes waiting for CPU time. A high number suggests a CPU bottleneck
+b - Number of processes in uninterruptible sleep, usually waiting for disk or network I/O.
+wa - Time the CPU spent waiting for disk/network I/O to complete. High wa means slow disks.
+
+**iostat** is a storage-focused diagnostic tool that monitors system input/output device loadin.
+
+```sh
+iostat -x 2 5 # displays output every 2 seconds for 5 times
+```
+-x --> gives high detailed stats
+
+fileds to watch in output:
+
+%util -  measures how much of the time the disk was doing at least one piece of work.
+
+await -  is the total time (in milliseconds) a single read or write request spends from the exact moment an application creates it, to the moment the disk completely finishes it.
