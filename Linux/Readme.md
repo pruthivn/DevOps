@@ -209,7 +209,7 @@ A. **Buffer memory:** Temporary storage for data in transit (moving between devi
 ### 13. Explain RSS, VSG, and shared memory?
 A. **VSZ(Virtual Memory Size):** This is the total memory space a process *thinks* it has access to. It includes all code, libraries, and memory allocations requested via **malloc**, even if they haven't actually been written to or loaded into physical RAM yet. It is usually a massive, misleading number(a process allocates 1 GB of virtual memory doesn't mean it is actually using 1 GB).
 
-**RSS (Resident Set Size):** RSS is the actual amount of physical RAM (in bytes) that a process is currently occupying right now. It tracks only the data that has been actively loaded or written into your physical RAM chips.It ignores swapped-out memory(means the kernel has pushed inactive memory out of physical RAM onto the hard disk to free up space) or unmapped virtual space.
+**RSS (Resident Set Size):** RSS is the actual amount of physical RAM (in bytes) that a process is currently occupying right now. It tracks only the data that has been actively loaded or written into your physical RAM chips.It ignores swapped-out memory(means the kernel has pushed inactive memory out of physical RAM onto the hard disk swap memory to free up space) or unmapped virtual space.
 
 it is also a misleading number(means the displayed number will not tell how much memory that process is consuming) because If Process A and Process B both use the exact same system library (like libc.so), the size of that library is fully counted inside Process A's RSS and fully counted inside Process B's RSS. This brings us to the third concept shared memory.
 
