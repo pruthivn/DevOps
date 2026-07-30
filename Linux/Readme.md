@@ -22,18 +22,17 @@ Examples:
 - User management
 - Backup automation
 
-## 25. SQL & Shell Knowledge
-SQL:
-- SELECT
-- JOIN
-- GROUP BY
-- ORDER BY
+## Interview Questions form TCS
 
-Shell:
-- grep
-- awk
-- sed
-- find
+### 1. difference between kill, kill -15, kill -9 and pkill?
+A. **pkill**: it is used t kill a process with process name. Ex: *pkill java*
+
+**kill:** it is used to kill a process with process id.  Ex: *kill 7908*
+
+**kill v/s kill -15:** both are used to kill the process gracefully(sending SIGTERM(signal 15)) we use *-15* signal to tell explicitly. in some OS or shells *-15* is not default, in prod environment admin create custom alias like *kill* to prompt for confirmation (kill -i)if we type *kill, kill -i* executes to overcome this we explicitly pass the -15 command to kill or pkill.
+
+**kill -9 v/s kill -15:**kill or kill -15 sends SIGTERM telling app/process to close app catches this signal save its current state, flush data to the hard drive, release memory, and close network connections. kill -9 sends SIGKILL insted of telling app it directly tells to *OS kernel* instantly wipe the process from memory(kill the processs)
+
 
 ## Interview Questions form DigiCert
 

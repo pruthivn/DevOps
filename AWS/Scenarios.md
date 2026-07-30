@@ -2,7 +2,7 @@
 
 Document AWS DevOps scenarios, troubleshooting cases, and practice examples here.
 
-## what is cache busting?
+## 1. what is cache busting?
 A. Cache busting is a web development technique that forces browsers to fetch the latest version of a file rather than using an outdated, locally cached copy.
 
 If you update your website's code, returning visitors might still see the old version because their browser believes it already has the correct file. By changing the file's URL—such as modifying style.css to style.css?v=2 or style.a1b2c3.css—the browser treats it as a completely new resource and bypasses the cache to download the updated file from the server.
