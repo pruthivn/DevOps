@@ -12,7 +12,7 @@ A. Helm charts are preferred over plain Kubernetes YAML manifests because Helm p
 A. In Helm, different environments such as Dev, UAT, and Production are usually differentiated using separate values files like values-dev.yaml, values-uat.yaml, and values-prod.yaml, Each file contains environment-specific configurations such as replica count, resource limits, and environment variables. During deployment, the CI/CD pipeline selects the appropriate values file and deploys the application using the Helm command with that file.
 
 ## 4. How do you handle failure in deployment?
-1. i deployment fails i immediaetly rollback to the previous stable app version and inform the dev teams and client about the issue.
+1. if deployment fails i immediaetly rollback to the previous stable app version and inform the dev teams and client about the issue.
 2. after that i wll check the logs and monitioring dashboards to identify the issue.
 3. then i will investigate the rootcause issue by reviewing recent code changes, Merge requests and deployment scripts to identify issues like it is code related issue or config issue or network issue or infra related issue.
 4. after identifying the issue i will solve that like if it is code realted communicate with dev teams or if it is network issue i will resolve that network issue.
@@ -68,7 +68,7 @@ eksctl upgrade nodegroup \
 6. then uncordon the node using *kubectl uncordon*
 7. repeat the same for every node.
 
-### 7. what is the hardest/recnt k8's issue you encountered?
+### 7. what is the hardest/recent k8's issue you encountered?
 A.**Kuburnetes API Server Latency:**
 1. we started receiving alerts from Prometheus/cloudwatch that application response time had increased significantly.
 initially,i assumed the app was slow, but the pods are healthy. i thought issue is with nodes but nodes have sufficient memory and CPU.
@@ -101,12 +101,12 @@ A. a specialized HTTP long-polling mechanism that allows clients to receive real
 This is how built in controllers like Deployment and replica sets operate in K8's.
 
 ### 8. Pods are Running, Service exists, but the app is not accessible, *kubectl get endpoints* shows None how can you solve this issue?
-A. if *kubectl get endpoints* shows None the service isn't linked any pod. compare the service selectors with pod lables, maybe label mismatch is the comman cause and ensure pod lables are matching the service selector.
+A. if *kubectl get endpoints* shows None the service isn't linked any pod. compare the service selectors with pod lables, maybe label mismatch is the common cause and ensure pod lables are matching the service selector.
 
 check the pods are ready or not using *kubectl get pods* if pods are not ready readiness probe is failed if it failed it removes pods from service.
 
 ### 9. What is the Difference between CreateContainerConfigError and CreateContainerError?
-A. **CreateContainerError:** This error is commonly due to *cmd or Entrypiont* errors(like invalid commands in *cmd*), invalid mount points, invalid ports or configuring already using ports. this error occur during the container creation.
+A. **CreateContainerError:** This error is occur due to *cmd or Entrypiont* errors(like invalid commands in *cmd*), invalid mount points, invalid ports or configuring already using ports. this error occur during the container creation.
 
 Make sure commands valid in cmd or entrypoint,configured volumemount paths, using right ports then restart the deployment to resolve this issue.
 
@@ -127,7 +127,7 @@ Ex: the wait time typically grows exponentially:
 This mechanism prevents that restarting container(uses more cpu and memory while restarts) consume more cluster resources.
 
 ### 11. What is init container?
-A. **init containers:** it's special containers that run before the main application containers in a pod start. it is used to verify external dependencies(like a database or external API becomes reachable), Managing Configuration(Downloading secrets, certificates, config files into shared volume), run database migrations. the main container only when init containers finishes successfully. init containers must exit with a status code of 0.
+A. **init containers:** it's special containers that run before the main application containers in a pod start. it is used to verify external dependencies(like a database or external API becomes reachable), Managing Configuration(Downloading secrets, certificates, config files into shared volume), run database migrations. the main container starts only when init containers finishes successfully. init containers must exit with a status code of 0.
 
 If you define multiple init containers, they run one at a time in the exact order specified.
 ```yaml
@@ -173,7 +173,7 @@ spec:
 3. if secrets configured as env vars new secret changes will not be reflected in container until pod restarts, so configure secrets as volumes.
 
 ### 13. Difference between ImagePullBackOff or ErrImagePull and ErrImageNeverPull?
-A. **ErrImageNeverPull:** this error occurs when we configured imagePullPolicy: Never(means k8's can't able pull the image from registry) in yaml manifest. if the image is no available pod crash's immediately. change the imagePullPolicy: always(it always pull the image from registry).
+A. **ErrImageNeverPull:** this error occurs when we configured imagePullPolicy: Never(means k8's can't able pull the image from registry) in yaml manifest. if the image is not available pod crash's immediately. change the imagePullPolicy: always(it always pull the image from registry).
 
 imagePullPolicy: IfNotPresent(Uses the local image if it exists; downloads registry it if it doesn't.)
 
@@ -188,7 +188,7 @@ A. if Node Affinity, Node selector are configured nodes attracts the pods but Ta
 
 Node affinity have Advanced matching rules (like podAffinity) require the K8's scheduler to evaluate every node against every pod. This slows down cluster performance in large environments.
 
-1. **Node selector:** A Node Selector is a simple key-value pair match. we will add lables to the nodes it pods matches this label pods will be schedule on this nodes.
+1. **Node selector:** A Node Selector is a simple key-value pair match. we will add lables to the nodes if pods matches this label pods will be schedule on this nodes.
 
 ```sh 
 kubectl label nodes worker-node-01 disktype=ssd

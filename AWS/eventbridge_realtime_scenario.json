@@ -1,0 +1,94 @@
+
+=========================
+Instance Related
+=========================
+
+{
+  "version": "0",
+  "id": "f5c858ea-a6d2-28b8-1b83-3f529c2b36aa",
+  "detail-type": "EC2 Instance State-change Notification",
+  "source": "aws.ec2",
+  "account": "828477980115",
+  "time": "2025-06-24T02:40:03Z",
+  "region": "ap-south-1",
+  "resources": [
+    "arn:aws:ec2:ap-south-1:828477980115:instance/i-04471d034968885a8"
+  ],
+  "detail": {
+    "instance-id": "i-04471d034968885a8",
+    "state": "stopping"
+  }
+}
+
+---
+
+// Input Path
+
+{
+    "time": "$.time",
+    "instance-id": "$.detail.instance-id",
+    "state": "$.detail.state",
+    "region": "$.region"
+}
+
+
+// Input Template
+
+"At <time>, Status of my ec2 instance <instance-id> is changed state to <state> in <region> Act fast"
+
+
+======
+Open port check used in realtime scenario 
+======
+
+{
+  "source": ["aws.ec2"],
+  "detail-type": ["AWS API Call via CloudTrail"],
+  "detail": {
+    "eventSource": ["ec2.amazonaws.com"],
+    "eventName": ["AuthorizeSecurityGroupIngress", "AuthorizeSecurityGroupEgress"],
+    "$or": [{
+      "requestParameters": {
+        "ipPermissions": {
+          "items": {
+            "ipRanges": {
+              "items": {
+                "cidrIp": ["0.0.0.0/0"]
+              }
+            }
+          }
+        }
+      }
+    }, {
+      "requestParameters": {
+        "ipPermissions": {
+          "items": {
+            "ipv6Ranges": {
+              "items": {
+                "cidrIpv6": ["::/0"]
+              }
+            }
+          }
+        }
+      }
+    }]
+  }
+}
+
+---
+
+{
+  "actor": "$.detail.userIdentity.arn",
+  "portFrom": "$.detail.requestParameters.ipPermissions.items[0].fromPort",
+  "portTo": "$.detail.requestParameters.ipPermissions.items[0].toPort",
+  "protocol": "$.detail.requestParameters.ipPermissions.items[0].ipProtocol",
+  "region": "$.region",
+  "sgId": "$.detail.requestParameters.groupId",
+  "time": "$.detail.eventTime"
+}
+
+---
+
+"SECURITY ALERT 🚨 | At <time>, Security Group <sgId> was opened to 0.0.0.0/0 for ports <portFrom>-<portTo> (<protocol>) in <region> by <actor>. Act immediately."
+
+---

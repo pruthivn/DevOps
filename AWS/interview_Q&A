@@ -53,6 +53,18 @@ A. Cost forecasting is the process of using historical spending data and machine
 
 in AWS we have AWS Cost Explorer that has built-in forecasting capabilities.
 
+### 7. how to know a instance is on-demand or spot or reserved?
+A. we can know using console and aws cli. in ec2 console select the instance in details tab look lifecycle it is normal on-demand instnace if it is spot it's spot instnace. but for reserved or other type instance it shows normal only to know instnace is reserved or not look into billing console(AWS cost explorer) same goes for cli method also(only identifies spot or on-demand).
+#### cli method:
+```sh
+aws ec2 describe-instances --instance-ids i-1234567890abcdef0 --query "Reservations[*].Instances[*].[InstanceId,InstanceLifecycle]" --output text
+```
+![alt text](.images/lifecycle.png)
+
+### 8. My ec2 instances are using EFS autoscaling group will scale the instances every time when adding new ec2 instance we need to mount the EFS id don't want to do this how would you resolve this issue?
+A. it's difficult manaually login to every new instnace and mount EFS. so we use *GoldenAMI* we will create a ami with EFS already mount to desired mount point(dir like /var/www/html) and in Autoscaling group launch template we will use this ami to create instances.
+
+
 ## Infosys interview questions
 
 ### 1. i have 300 aws accounts how can i check the vulnerabilities in these accounts using single dashboard?

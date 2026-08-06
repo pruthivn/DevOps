@@ -6,7 +6,7 @@ Snapshot : backup copy of an EBS volume.
 
 for region to region we will copy snapshot to desired region from that snapshot we will create volume.
 
-we can cpy snapshots form one account to another account. we can share snapshots everyone publicly as well using snapshot id.
+we can copy snapshots form one account to another account. we can share snapshots everyone publicly as well using snapshot id.
 
 Snapshots are point in time copies. (If you create a snapshot at 09:30, whatever the files you have in volume at 09:30, only those will be backedup).. 
 
@@ -226,3 +226,543 @@ To monitor memory usage or storage (free storage) or to get our application logs
 
 ============
 
+## EventBridge
+Amazon EventBridge is a serverless event bus service that connects different application components using real-time data streams. using this we can do two things we can trigger EventDriven process and we can schedule the tasks.
+
+#### EventDriven process: i want create a sns alert when an IAM user is created or deleteed.
+
+EC2 Instance --> Stop / Reboot / terminate --> Alert (Production Support) 
+
+IAM User created (iam.amazonaws.com) --> "Createuser", "DeleteUser"  --> SNS
+(Cloudtrail)
+
+For IAM realted activities, We can directly search, but Eventbrodge always checks for the events inside a management trail(it has stored all cloud trail logs in s3 bucket from this eventbridge check details and send the alerts).. 
+Create a Management trail in Cloudtrail and perform the IAM releated activity.
+
+**Note:** make sure you are creating management trail, sns topic and eventbridge rule in same region. 
+
+1. creating management trail goto cloud trail console --> Trails --> Create trail --> give name then uncheck log validation and kms encryption click next in the events tab check the management events then click next review and click create trail. then create sns topic for alert and subscribe your email address to that topic. 
+![alt text](.images/trail.png)
+![alt text](.images/trail1.png)
+![alt text](.images/trail2.png)
+
+2. create Eventbridge rule goto Eventbridge console --> Rules(on leftpane) --> Create rule --> it show 2 options(enhanced and adavnced builder(we can drag and drop the services advanced one) choose advanced builder)give name and description --> clicknext --> in event pattern tab select use pattern form select *IAM* service then select AWS api call via cloudtrail in event type(we only want to trigger when iam user created or deleted) click on specific operation and select CreateUser and DeleteUser(it will be same as event type format in cloudtrail example in cloud we search eventtype "CreateUser" and "DeleteUser" it will same in specific operation section) 
+![alt text](.images/eventbridge.png)
+![alt text](.images/eventbridge2.png)
+
+3. then click next in target tab select SNS topic and select the topic we created for alert and select create new role click on additional setting select input transformer in configure target input(we will get output in json format in mail it's not good to read so we will transform the output in human readable format here) click on configure input transformer select event on myown Give the json ouput showing in email in target input transformer tab in input path section give the below format.
+![alt text](.images/eventbridge1.png)
+![alt text](.images/eventbridge3.png)
+{
+  "eventName": "$.detail.eventName",
+  "userName": "$.detail.requestParameters.userName",
+  "actor": "$.detail.userIdentity.userName",
+  "ip": "$.detail.sourceIPAddress",
+  "time": "$.detail.eventTime",
+  "account": "$.account",
+  "region": "$.region"
+}
+
+4. in template section give the below format. if click generate output it will show the ouput that is going to be sent in mail. we can change the output format as per our requirement.
+
+{"message": "IAM user event: <eventName> Account: <account> Region: <region> User affected: <userName> Performed by: <actor> Source IP: <ip> Time (UTC): <time>"}
+5. click next if you want add tags we can add then click next review the details and click create rule. 
+![alt text](.images/eventbridge4.png)
+
+### EventBridge Scheduler:
+EventBridge Scheduler is a fully managed service that allows you to schedule tasks and automate workflows in AWS.
+
+1. goto EventBridge console --> Scheduler(on leftpane) click on schedules --> Create schedule --> give name and description --> select the schedule group(used to group the schedules) --> in schedule pattern one time schedule or recurring schedule(cron schedule) if select time in *flexible time window*(if you select 5 min your task schedule at 10 pm scheduler run randomly anywhere between 10:00 pm to 10:05 pm ex: 10:03) click next --> in target tab select all api's then select the service you want to trigger(like ec2,lambda,sns etc..) you selcted ec2 instance in *start instance* section give the instance id and click next.
+![alt text](.images/scheduler.png)
+![alt text](.images/scheduler1.png)
+
+2. then in Action after schedule completion tab (if you want to delete the schedule after completion select delete otherwise put NONE) in premisions tab select create new role(if it will not allow, create anew  role with ec2 permissions in role trust policy remove the ec2 and add *scheduler*) click next review the details and click create schedule. it will start ec2 instance as per the schedule we created.
+![alt text](.images/scheduler2.png)
+
+<font color="red">**Note:**</font> we can't create a role with service scheduler or eventbridge scheduler(like how we created for ec2 service we don't have eventbridge scheduler) that's why for work around we created a role for ec2 service with ec2 access in trust policy we replaced ec2 with scheduler now scheduler assume this role and start the instance.
+
+## AWS CLI:
+
+
+Any IAM user wil have 2 types of accesses.
+
+AWS management console access : username, password and Sign-url --> browser
+Programatic Access : Accesskey and SecretAccesskey	--> CLI
+
+Programatic Access is not much secured.
+Cred stores in Plain text format. it wont rotate.
+
+c:/users/administaror/.aws --> config and credentials
+~/.aws --> config and credentials
+
+Navigate to "https://aws.amazon.com/cli", downlaod and install CLI
+
+```sh
+aws --version			--> TO identify installed aws cli version
+
+aws configure
+AccesskeyId : 
+SecretAccesskey: 
+DefualtRegion : ap-south-1
+DefaultOutput : json/table
+
+
+aws sts get-caller-identity			--> TO see / fetch currently configured user info
+
+aws configure list					--> list the currently configure profile
+
+aws configure list-profiles
+
+aws iam list-users
+aws ec2 describe-instances --region eu-north-1
+
+--
+
+aws configure --profile uat
+aws configure --profile prd
+
+aws s3 ls							--> List the buckets from deafult profile
+aws s3 ls --profile <uat>			--> List the buckets from uat profile
+
+aws s3 mb s3://aviz6-cli-test2
+
+aws s3 ls --debug					--> generate logs with debug
+
+aws servicename command arguments
+
+
+aws iam create-user --user-name aviz6-cli
+
+aws iam attach-user-policy --user-name aviz6-cli --policy-arn arn:aws:iam::aws:policy/IAMReadOnlyAccess
+
+
+aws ec2 describe-instances --region ap-south-1
+
+Search Instance by Name tag
+aws ec2 describe-instances --filters "Name=tag:Name,Values=*Jenkins-Server*" --output table
+
+Search for only running ec2 instance
+aws ec2 describe-instances --filters "Name=instance-state-name,Values=running" --output table
+
+Search using Private IP:
+aws ec2 describe-instances --filters "Name=private-ip-address,Values=172.31.22.18" --output table
+
+
+--
+
+aws iam list-users --query "Users[*].[UserName, CreateDate]" --output table
+
+aws ec2 describe-instances		--> PrivateIP
+
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].PrivateIpAddress' --output text
+
+[*]	--> Select all elements
+[0] --> First element
+
+
+aws iam list-access-keys --username USERNAME  --query 
+
+
+aws s3 sync c:/desktop/folder/ s3://avizway/lmsdata/
+```
+<font color="red">**Note:**</font> recently we got *aws login command* using this we can login to aws cli without accesskey and secretaccesskey. after typing aws login command it will ask region then it will show which account you are logged in browser.
+
+## AWS Cross-account access
+if Account-A want to access the s3 buckets in account-B.
+1. create a role(for AWS account) select AWS account in use case tab select another account provide Account-A Account id and then in policies attach the s3 policies the create a role. then copy the link to switch role url(susing this url also we can able to login).
+![alt text](.images/role.png)
+2. goto Account-A click on on your account and then click on switch role give the Account-B id and give iam role name created in account-B in rolename section.
+![alt text](.images/role1.png)
+![alt text](.images/role2.png)
+
+<font color="red">**Note:**</font> In role trust policy the service arn we mention that service able to assume that role. we can't attach multiple roles to a service but we can attach multiple policies to a role.
+
+## AWS System manager:
+AWS Systems Manager (SSM) is a secure AWS management service helps you automatically view, control, and operate your cloud and on-premises infrastructure at scale. it offers Node Management(session Manager, run command, Fleet Manager), Operations Management(Incident Manager, OpsCenter), Change Management(State Manager, Patch Manager), Application Management(parameter store) 
+
+### System session manager(SSM):
+AWS Systems Manager Session Manager is a fully managed AWS service that lets you securely manage and connect to your Amazon EC2 instances, on-premises servers, and virtual machines (VMs).
+
+can we connect a an aws instance without opening port number 22?
+
+yes using aws session manager, through console also we need to port 22 to connect.
+
+1. Create a role and attach policy *AmazonSSMManagedInstanceCore*(without this policy ssm not able to connect our EC2 insatance) to the role then attach that role to ec2 instance. if it will show ping status offline like below image wait until the role takes effect.
+![alt text](.images/ssm.png)
+
+we can create this ssm console as well goto ssm console on left pane click on session manager click on start session give the reason and select the ec2 instance(we can select only one instance) then if you have the session document(a configuration file that defines the settings, behaviors, and security controls for your AWS Session Manager connections like Encryption, Logging(save session terminal history to Amazon S3 or Amazon CloudWatch Logs.)etc.) and then click on start session you will connect to ec2 instance.
+
+### Run command:
+it is used to run commands in ec2 instance.
+
+Before going to run command attach necessary policies to the role like ssm full access etc.
+1. goto system manger on left pane click on run command --> run command --> on command document section select *AWS-RunShellScript*(to run commands in shell) --> command parameters section give commands you want to run --> target selection section select ec2 instance(we can select multiple instances) --> ratecontrol section(we can control in how many targets we can run commands ata time(100 instances run cmds in 50 instance first then 50)error threshold it will stop execution if cmds fails in specified targets) --> output options sections(we can store cmds output in s3 or cloud watch logs) then we other options also explore the click run.
+![alt text](.images/runcmd.png)
+![alt text](.images/runcmd1.png)
+
+enabling httpd and creating index.html in ec2 instance.
+```sh
+#!/bin/bash
+sudo dnf install httpd -y
+sudo systemctl start httpd
+sudo systemctl enable httpd
+sudo echo "<h1>THis is created by SSM RUn COmmand Demo </h1>" >> /var/www/html/index.html
+```
+
+## AWS Security groups & Nacl's:
+
+Security group : it's like a firewall, configured at instance level.
+** We can add multiple SGs for one ec2 instance
+** There is no option to DENY the traffic, Only allow is possible.
+** Changes to the SG takes effect without any delays.
+
+Inbound = Traffic coming INTO your ec2 instance : ssh: 22, http:80, https:443, mysql:3306, mssql:1433
+Outbound = Traffic going OUT from your EC2 Instance : 0.0.0.0/0
+
+Note: we can edit outbound traffic rules
+
+Why we mostly open outbound for anywhere.?
+--> To install anything, we get packages from internet.
+--> To access webpages
+--> To call external APIs
+--> Send logs to cloudwatch
+--> Access s3 from instance
+
+stateful : SG are stateful. Whatever traffic allowed inside, that automatically allowed outside. We really no need to worry about oputbound rules (0.0.0.0/0). 
+
+Stateless : We need to explicitly allow inbound and outbound traffic. VPC --> NACLs
+
+---
+
+USERDATA: we can pass commands only once, when instance launched for the first time.  These comamnds runs as "root" user.
+
+the ouput of the userdata commands stored in this log file : /var/log/cloud-init-output.log
+
+size should be less than 16KB.. 
+
+Note: if scripit is greater than 16 kb Put the scripit inside an s3 bucket upload that file in userdata section.
+
+![alt text](.images/userdata.png)
+---
+
+METADATA: We can use this option to get data about our ec2 instance  (When we are inside the OS) like public ip's, VPC's attached etc. it is useful when you don't have console access to ec2 instance you want to know instance public ip details vpc details we can use this metadata.
+
+To access metadata, enable metadata option. we have 2 ways to ge the instance metadata
+
+v1(optional)  : we can access info with metadata url. (less secured - Chances for SSRF attack (server side request forgery))
+v2(required)  : It needs token to access metadata.
+
+![alt text](.images/metadata.png)
+
+#### 1. accessing metadata in less secured method(optional):
+using below url we will get metadata of a ec2 instnace run below curl command in ec2 instance it will give metadata of that instance.
+
+curl http://169.254.169.254/latest/meta-data
+
+output of /metadata path look like below
+```sh
+ami-id
+ami-launch-index
+ami-manifest-path
+block-device-mapping/
+events/
+hostname
+identity-credentials/
+instance-action
+instance-id
+instance-life-cycle
+instance-type
+local-hostname
+local-ipv4
+mac
+managed-ssh-keys/
+metrics/
+network/
+placement/
+profile
+public-hostname
+public-ipv4
+public-keys/
+reservation-id
+security-groups
+services/
+```
+if you want to know about vpc id attached to that instance we will get that in below path
+
+curl http://169.254.169.254/latest/meta-data/network/interfaces/macs/02:34:5d:11:55:43/vpc-id
+
+
+---
+#### 1. Accessing metadata using token secured method(Required in EC2 console):
+using below command generating and storing the token in "TOKEN" env variable
+
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+
+```sh
+echo $TOKEN
+
+output:
+AQAEAHg2t2MnS6tL7oxrRIPUo6ava3_kBFBC7EA72txj-B_I1nOWWQ==
+```
+
+curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/
+
+Note: for aws role we attached to instance also will get temporary tokens we can see that token using this command "aws sts get-caller-identity --debug"(question asked in aws certificate exam for clarity see the video-22(54 min))
+
+---
+
+ ## Spot instances:
+SPOT Instances : We have to bid our price against aws pricing. 
+Our quoted price is equal or higher than aws pricing, aws allocates the instance.
+
+Due to demand instance prices increases, if price increase, AWS terminates our ec2 instance. it will send alert 2 mins before terminiation of spot instance.
+Suggested to run less important workloads if suddenly instance terminated it affect the bussiness.
+
+**Note:** 
+1. if you take the spot instane for 1 year it will give 744 hours per month if we don't use instance in one month those month hours will not carry forward for next fresh 744 hours will come.
+2. if you take 1 t3.large spot instance and running 2 t3.large they will cost separately because one we are launching as spot instance other we are launching as on-demand. if you want you add the 
+
+
+1. goto ec2 console --> on left pane click on spot instnaces --> click on pricing history to check the price of spot instance(explore different options)
+![alt text](.images/spot.png)
+
+#### Spot instance creation:
+1. goto ec2 console --> on left pane click on spot instnaces --> click on create spot fleet --> select the instance you want --> in addtional launch parameters we add additional requirements like ebs volumes, SG's , tenancy(means if our instance want to run only on dedicated physical server(in that physical server only our instance running) we select dedicated other wise we selsct shared), keypair etc. --> in additional request details untick *applydefaults* you will when you want sart and stop the instance and other details.
+![alt text](.images/spot1.png)
+![alt text](.images/spot2.png)
+2. in Target capacity tab we will define instance/cpu/memroy count and *set cost intance price*(this is where we mention our price the spot instance) --> then give network details --> in instance type requirement tab we will give cpu, memory details in *preview matching instance tab* we will select multiple instance types to increase fleet strength but it randomly allocates anyone of these types(if you want instance with min/max 4 cpus and memroy min/max 8gb it show all the instance type that matching this cpu and memory see the second image below) --> select your allocation strategy the luanch instance.
+![alt text](.images/spot3.png)
+![alt text](.images/spot4.png)
+
+**Note:** in free account spot instances are not supported. we can't launch spot instances.
+
+AWS exam scenario: 
+1. you launced an spot instance it runs 3:47 mins Due to price change aws terminates the instance in thsi situation we only billed to 3hrs(will oly pay 3 hours) addtional/partical hours(47 mins or 0.77 hrs) we will not billed. if we terminates the instance that partical hours also get billed(pays for 3:47 hours).
+
+---
+
+Savings Plan : This is a billing commitment. 
+"I will spend $2 per hour on ec2 compute capacity for 1 year"
+
+--> We can change instance type (cpu/memory), AZs. 
+
+on-demand, spot and reserved instance ==> We are reserving the capacity.
+
+
+Tenancy : 
+
+Multi/Shared-Tenancy : One hardware/physical server can be shared with multiple customers.
+
+Single/Dedicated-Tenancy : hardware/physical server specifically allocated to only one customer. we mainly use to meet complaince regulations like HIPPA, PCI-DSS etc.
+
+1. Creating reserved instance goto ec2 console--> on left pane click on reserved instance --> click purchase reserved instance --> fill details like instance type, tenancy(default is shared tenency), term etc.
+
+![alt text](.images/reserved.png)
+
+
+---
+
+3/3 status checks
+
+Instance status check : reboot / inspect logs / ssm connect / root volume replacement
+System status check : stop and start / contact aws (physical servers check)
+Storage/EBS status check : AWS responsibility
+
+---
+
+placement groups : 
+
+Cluster PG : all instances runs on same h/w.. ultra low latency and low network throughput..
+if underlying h/w fails, all instances get affected.
+
+Partition PG : we will have partitions, every partition will have its own power and network connectivity.. 
+
+Spread PG : every instance runs on a seperate hardware..
+
+## AWS Load Balancer:
+Load balancer will ping the instances for every 30 seconds the instance need to give the response in 2 seconds it wll use port 80 to ping to consider a instance is healthy we have healthy and unhealthy threshold.
+
+**Healthy threshold:** load balancer pings instance if we get 3 consecutive response from instance that instance would be consider as healthy and routes the traffic.
+
+**UnHealthy threshold:** load balancer pings instance  if the request failed 5 consecutive times(will not get no response)  that instance would be consider as unhealthy and stops traffic.
+
+By default ELB follows Round roubin mechanism.
+![alt text](.images/ELB.png)
+
+### creation of load balancer
+first create two ec2 instance enable httpd service and create a index.html.
+1. Goto EC2 console pane left pane click on target group on load balancing tab--> create target group --> on settings tab select target type instances (other types ip address(used when running containers in instance conatainers doesn't have instance id's it have ip's only), lambda, application LB) --> for ALB use http/https with port 80/443 (use tcp/udp or other settings) select the protocol version Http1 --> in health check tab configure the protocol(http/https) configure the path(like "/" or /status.html LB ping this path every 30 seconds) in advanced settings we change we can add health thresholds and other settings. --> target optimizer it is optina(limits the maximum number of concurrent (simultaneous) requests a single backend server can receive.) if we turn on we need install target target optimizer agent in instance. --> add tags(optional) click next
+![alt text](.images/TG.png)
+![alt text](.images/TG1.png)
+2. selct the instances and click on *include as pending below* --> review targets --> click next --> review the TG and click on create taret group.
+![alt text](.images/TG2.png)
+![alt text](.images/TG3.png)
+
+3. create a security group and open the http/80 port.
+4. goto ec2 console on left pane click load balancer and create load balancer --> select the load balancer type (App,network,gateway) --> give name --> select internet facing --> select ip4 --> in network mapping section select VPC and select the availability zones(atleast select 2 availability zones) --> selct security group --> inspect listeners and routing section --> then review the other settings create a load balancer.
+
+![alt text](.images/ELB1.png)
+![alt text](.images/ELB2.png)
+![alt text](.images/ELB3.png)
+![alt text](.images/ELB4.png)
+5. after creating load balancer check the health check status in target group if it is not healthy might be issue with the path we gave for health check(like "/" or "status.htmL")
+![alt text](.images/Hcheck.png)
+
+**Note:** application port number and listener port can be same or differnet as well but for no confusion we will use same port. 
+![alt text](.images/listener.png)
+
+6. *Stickiness*(binds a user's session to a specific server within your target group) will see this option in attributes section after creating target group if we enable this if i connect to frontend server with laptop my session will stick same server(1 hour or 1 day as per configured)
+![alt text](.images/stickiness.png)
+
+i want to restrict the access of application through server public ip app only access through elb dns only how you achieve this?
+A. using pipeline mechanism means in ec2 security group we will route the port 80 traffic to ELB security group(instead of anywhere ip4) this is called pipeline mechanism this is secure way.
+
+#### ELB Routing rules/Algorithms:
+**1. Round Robin:** Classic Load Balancers (CLBs) use a round-robin algorithm to distribute incoming requests evenly across all healthy targets.
+**2. Least Outstanding Requests (LOR):** The ALB dynamically tracks how many active, unfinished HTTP requests each EC2 instance is currently processing. It automatically routes the next incoming request to the server with the lowest number of active jobs(requests).
+
+Ex: If Server A has 5 active requests and Server B has 2 active requests, the ALB will route the next incoming request to Server B because it has the least number of active jobs.
+
+**3. Weighted random:** Weighted random routes requests evenly across healthy targets, in a random order. While Anomaly detection is applied by default, you must turn on Anomaly mitigation for Automatic Target Weights (ATW) to apply.
+
+Ex: Blue/Green deployments or testing new features on a tiny fraction of live users. we will configure one target group will receive 70% traffic other will receive 30%.
+
+### Network Load Balancer:
+--> Supports millions of requests at ultra low latency
+--> NLB uses flow hash algorithm.
+--> This supports Static IP (We can add EIP) 
+if we supporting our application service to client as well if client ask give me your ELB ip's we will whitelist them in this scenario we will use static ip's.
+![alt text](.images/NLB.png)
+
+#### NLB and ALB combination:
+we are using the combination of NLB and ALB to deliver our application of static ip. 
+
+![alt text](.images/NLB1.png)
+1. goto target group console click on create target group  --> select the application load balancer --> give the tcp 80 port --> click next
+![alt text](.images/NLB2.png)
+2. select the ALB --> click next
+
+## Autoscaling Group
+ASG scale up instances quickly but scale down takes slowly
+ 
+1. create a launch template Goto EC2 console pane left pane click on launch template --> create lauch template --> give the name and check the Auto Scaling guidance(will check this if we attach lauch template to autoscaling it will tell whilch fields required which are not) --> click on Browse AmI's and select the ami(we can select AMI's as well) -->select key pair--> in networking section don't include subnet and AZ if we add our ASG will lauch instances in one AZ only --> select SG and click create.
+![alt text](.images/ASG.png)
+![alt text](.images/ASG1.png)
+
+2. creating ASG Goto EC2 console left pane click on ASG  --> create lauch template --> give the name and select the launch template click next 
+![alt text](.images/asg2.png)
+3. In instance type if we can reset launch template settings as well --> in networking section select the VPC and availability zones and explore the Availability Zone distribution options. click next
+![alt text](.images/asg3.png)
+![alt text](.images/asg4.png)
+4. Attacht the load balancer --> in Health checks tab give the Health check grace period(it dealys first heath check beacuse some apps starts lately apps will take time to up and running). click next
+![alt text](.images/asg5.png)
+5. here will configure desired capacity, max and min--> we have instance maintenance policy(Terminate and launch, Launch before terminating and other options explore) in advanced setting in monitoring section check the *Enable group metrics collection within CloudWatch*!
+![alt text](.images/asg6.png)
+6. select the notification service if instance terminate or Replace root volume or Fail to launch and other options available click next --> then we can add tags click next review the settings clcik create.
+![alt text](.images/asg7.png)
+
+#### Scaling policies
+##### Dynamic scaling:
+it's used to scale the instance according cloud watch alarms(cpu,memory uasge etc.) we have 3 types of scaling 
+
+goto autoscaling group console select the ASG goto *Automatic scaling* tab you will find different types of scalings click create dynamic scaling select the policy type(simple,step,target tracking), --> select the cloudwatch alarm --> select action(add, remove, setup) --> *Andthenwait*(wait time for next scaling action if we put 300 seconds next scaling will happen after 5 mintues)
+![alt text](.images/dsp.png)
+
+1. **Simple Scaling:** Scaling instances using cpu usage or other metrics, triggering by cloudwatch alarms. if cpu > 80%  scale up the instances if cpu < 20% scale down instances.
+![alt text](.images/sp.png)
+2. **Step Scaling:** it's similar like simple scaling we will add instances gradually according to cpu usage. if my cpu usage in in between 20% to 15% remove the 1 instance it's in between 15% to 10% remove the 2 instances like this.
+![alt text](.images/step.png)
+3. **Target Tracking scaling:**AWS automaticly creates scale  up and sacle down the instance accrding cpu, network in/out etc. if cpu usage is >50% it will scale up instances(till avg cpu comes down to 50%) if cpu usage is <50% it will scale down.
+
+Ex: if we have 2 instances we configured cpu 50% load goes 75%+ in 2 instances aws adding one instance will put the load at 50% it will add new instance(if cpu usage is 65% in each instance it will not add new instance) this how it works.
+![alt text](.images/TTscaling.png)
+
+##### Predictive scaling:
+we can sacle the instances based on historical data(last 2 weeks or 8 weeks).
+![alt text](.images/Pscale.png)
+
+##### Scheduled scaling:
+we scale instance at a particular time(based on scheduled). we can use cron job as well.
+![alt text](.images/scheduledscaling.png)
+
+
+### Vertical scaling:
+as of know we did horizontal scaling for vertical scaling we need to modify lauch template first then we do instance refresh in ASG. it will follow Rolling update startegy.
+1. modify the instance type in launch template and switch to latest version then goto ASG select the ASG click on instance refresh select the options then click on start instance refresh.
+![alt text](.images/vs.png)
+
+**some settings definition in ASG's:**
+
+Default Cooldown Period – A waiting period (default 300 seconds) after a scaling activity before another can begin; prevents rapid, unnecessary scaling
+
+Warm Pool – Pre-initialized instances kept in a stopped/running state so they can be launched faster than cold-starting new ones
+
+Instance Warm-up Period – Time given to a newly launched instance before it starts contributing to CloudWatch metrics (prevents premature scaling decisions based on incomplete data)
+
+Lifecycle Hooks – Allow you to pause instances during launch or termination to perform custom actions (e.g., pulling config, draining connections)
+
+
+## Route53
+AWS DNS Servcie
+
+DNS = Domain Naming System / Service..
+
+Route53 = AWS DNS Service
+
+A Record : Address Record : IP <--> Name (ipv4) (converts ipv4 to Domain name, domain name to ipv4)
+
+AAAA Record : Address Record : IP <--> Name (ipv6) (converts ipv6 to Domain name, domain name to ipv6)
+
+CNAME : Cananical Name : Another Name ( Creates an alias pointing one domain name to another domain name instead of IP address.)
+EX: rds.pruthvilearnaws.shop ---> pruthvilearnaws.shop like fb.com --> facebook.com
+TXT :  Simple Text Record : sometimes we will create this to prove this domain is belongs to us.
+MX : Mail Serer Records..
+
+Alias : THis helps us to pick the aws appropriote resources automatically.
+
+We cannot delete these records..
+NS : Name Server Record (THis helps to map AWS and Domain Registrer)
+SOA : Start of Authority Record : 
+
+DomainRegistrer : Godaddy, Bigrock, namecheaap, aws route53, hostinger (using this webiste we can register our domain name)
+ICANN(Internet Corporation for Assigned Names and Numbers): maintains Domain uniqueness
+IANA root zonedb
+
+
+
+Step 1 : Purchase a Domain name 
+
+Step 2 : Create a HostedZone in R53 (Public)
+
+Step 3 : Grab the NS records from HostedZOne and configure it at Doamin Registrer
+
+ns-1959.awsdns-52.co.uk
+ns-154.awsdns-19.com
+ns-667.awsdns-19.net
+ns-1183.awsdns-19.org
+
+### Creating Route53
+1. first we will create hosted zone goto route53 on left pane click on hosted zone click create hosted zone --> give your domiain name(pruthvilearnaws.shop) select type pubic(have private also it's used to resolve domain internally in particular region in particular VPC).
+
+Note: after creating hosted zone 2 records will be created namw server record and SOA(Start of Authority Record) we caon't delete these records. 
+![alt text](.images/R53.png)
+
+2. copy the NS(name server) records vailable in hosted zone and register them in domain register(where you purchased domain) see the below image. goto hostinger on left pane click on domains then click on DNS/Nameservers then click change nameservers select change nameservers then give the copied name servers from hostedzone. it will take 24 hours to activate.
+
+Note: because of this when we hit pruthvilearnaws.shop it will route traffic to Route53 instead of passing it to Hostinger. From 
+Route53 the traffic route to server(or other service) we need to configure that server.
+![alt text](.images/nsrecords.png)
+
+3. create a webserver(enable httpd, create index.html) goto Hosted zones click on create record --> give record name(it's like subdomain name) we put this blank as well. --> in value give the ip address of server we have Alias also(read the note) then select routing policy(simple, weighted etc.) then click on create record.
+![alt text](.images/record.png)
+
+Note: Alias maps your domain name directly to AWS resources(ELB, CloudFront distributions, S3 buckets etc). above our domain name to ip(ec2 server) like we can map directly to AWS resources.
+![alt text](.images/alias.png)
+
+
+
+
+
+Routing policies:
+
+![alt text](.images/r53.drawio)
