@@ -251,34 +251,80 @@ We can use Site-2-site VPN conenction / Direct Connect to establish connection b
 
 ---
 
-D: 02/03/2026
 
-NETWORK ACL / NACls : 
+## NETWORK ACL / NACls : 
 
-By defaultly, all subnets witll be part of Defualt NetworkACL. Ans, It allows all the traffic to all the network..
+By default, all subnets will be part of the Default NetworkACL. And, It allows all the traffic to all the network..
 
-newly created network ACLs, wont allow any traffic to any network. It blocks everything.
+newly created network ACLs, won't allow any traffic to any network. It blocks everything.
 
-One subnet can be member of one NACL at a time. 
+One subnet can be member of one NACL at a time.(one subnet will not be part of multiple NACLs at a time.)
 
-We have to create rules increments of 100s.. (100 / 200 / 300..)
+We have to create rules increments of 100s.. (100 / 200 / 300..) lowest rule number will be evaluated first(it takes the high priority). if i deny the ssh traffic with 100 and allow the ssh traffic with 101, it will deny the traffic because 100 is evaluated first.
 
 SGs will have only allow option.. SG Dont have DENY option..
 
-NACLs have allow and deny option. If you want to deny the traffic to a particular network, you cna grab the Network IP and and deny it. 
+NACLs have allow and deny option. If you want to deny the traffic to a particular network, you can grab the Network IP and deny it.
+
+#### ephemeral ports:
+Ephemeral ports are temporary ports used for outbound connections. 
+
+how it works: 
+
+the nacl is stateless, it does not remember the state of the connection. they completely forget the incoming request and require a separate rule to allow the return traffic out.
+
+The Request: A client connects to your server. Their packet has a Source Port (a random ephemeral port like 51023) and a Destination Port (80). Your inbound NACL rule allows this because port 80 is open.
+
+The Server Response: Your web server processes the request and sends the webpage back. The return packet flips the ports: the Source Port becomes 80, and the Destination Port becomes the client's ephemeral port (51023).
+
+The NACL Block: When this return packet hits your outbound NACL, the NACL checks its rules. It does not remember that this packet is part of an active session. If you do not have an outbound rule allowing ports 1024-65535, the NACL drops the packet, and the user's browser times out.
 
 
+### creating NACLs
+1. goto NACL console click on create network ACL give name --> select the VPC --> click on create network ACL. goto subnet associations tab and add the public subnets to this NACL. then allow the inbound and outbound rules for this NACL. even though we have added inbound and outbound rules we can't access instance because we need ephemeral port range to be allowed in outbound rules. ephemeral port range is 1024-65535. 
+![alt text](../.images/nacl.png)
+![alt text](../.images/eport.png)
+
+**Note:** 
+1. when we create new NACL by default traffic will be blocked. 
+2. if you want to block the traffic to a particular network add deny rule in Inbound rule in outbound rule it will not work because it uses ephemeral port(random port) for return traffic if we deny http in outbound rule it will not work because it uses ephemeral port for return traffic.
+3. while entering an ip to allow or deny in NACLs we need to put /32 at the end of the ip address.(/32 locks down all 32 bits if we use /24 it only lock down first 24 bits and allow the last 8 bits to access the network.) 
 --
 
+## VPC Flow Logs:
 We have option to enable logs at 
 1. vpc level
 2. subnet level
 3. individual instance level
 
+1. before creating flow logs we need to create a log group in cloudwatch goto cloudwatch console on left pane click on logs then click on log management then click on create log group give name --> rentention seetings(how many you will store logs like 7days or 90 days etc.) --> explore other options --> click on create.
+![alt text](../.images/loggroup.png)
+2. goto vpc console select vpc select the flow logs tab click on create flow log --> give name --> in filter section select the type of traffic you want to capture(accept / reject / all) --> in maximum aggregation section select 1 min --> in destination section select the cloudwatch logs select the log group we created in step-1.(we can send the logs to S3 also but to see those logs we need to use glue and uses sql queries to see the logs it's complex but cloud watch also supports alarms as well.) --> in service role section select the new role --> log format select the default format(we can use custom format as well)
+![alt text](../.images/flowlog.png)
+
+3. goto log group we created in log stream tab you see the instance network interface id you will see that instance network logs in that NIC.
+
+![alt text](../.images/NIC.png)
+
+4. click on the NIC to view the instance logs in actions click on log insights in prompt section using plain prompt we can view logs(example: to view the latest 5 logs write prompt see the below image)
+![alt text](../.images/loginsight.png)
+
+Note: we can also create flow logs at subnet level and instance level as well but it will log only subnet level or instance level traffic not the entire vpc traffic. 
+
 ---
+## VPC Endpoints:
+VPC endpoints are used to connect to AWS services without using public IPs or going through the internet. VPC endpoints are virtual devices that enable private connections between your VPC and supported AWS services and VPC endpoint services powered by AWS PrivateLink.
 
 Endpoints: Access S3/dynamodb / other resources without internet using endpoints
 
+1. goto vpc console on left pane select endpoints click on create endpoint give name --> enable cross region endpoint(if required) --> in services section type s3 click enter we have 2 types gateway(aws managed only charges for data transfer) and interface(if we select this it creates ENI(elastic subnet interface) in our subnet it costs per hour and also charges data transfer as well) endpoint select the gateway endpoint --> select our VPC --> in configure route tables section select the route table where our private instance are running(private with internet) --> in policy section select the full access(for s3) --> click on create endpoint.
+![alt text](../.images/vpcep.png)
+![alt text](../.images/vpcep2.png)
+
+now you can access the s3 bucket without internet from your private instance
+
+in private with internet route table we ca see the vpc endpoint route with pl-xxxx(pl means private link).
+![alt text](../.images/vpcep1.png)
 ---
 
 D: 03/03/2026
