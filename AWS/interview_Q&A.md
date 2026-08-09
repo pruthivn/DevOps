@@ -64,6 +64,10 @@ aws ec2 describe-instances --instance-ids i-1234567890abcdef0 --query "Reservati
 ### 8. My ec2 instances are using EFS autoscaling group will scale the instances every time when adding new ec2 instance we need to mount the EFS id don't want to do this how would you resolve this issue?
 A. it's difficult manaually login to every new instnace and mount EFS. so we use *GoldenAMI* we will create a ami with EFS already mount to desired mount point(dir like /var/www/html) and in Autoscaling group launch template we will use this ami to create instances.
 
+### 9. When you create a new vpc, what are the components you get defualtly?
+A. RouteTable, NACL, DefaultSecurityGroup
+
+
 
 ## Infosys interview questions
 
