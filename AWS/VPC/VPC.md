@@ -327,21 +327,25 @@ in private with internet route table we ca see the vpc endpoint route with pl-xx
 ![alt text](../.images/vpcep1.png)
 ---
 
-D: 03/03/2026
 
-VPC Peering : This helps to enable communication between 2 VPCs. 
-
-Source VPC and Target VPC should not have same CIDR ranges. 
+## VPC Peering:
+This helps to enable communication between 2 VPCs. to enable communication between 2 VPCs, Source VPC and Target VPC should not have the same CIDR ranges.
 
 VPC peering is Non-Transitive peering.
 
+qw need below details to create a VPC peering connection between 2 VPCs.
+
 				Requester VPC				Accepter VPC
 Acc ID			655700896650				655700896650
-VPC IP			vpc-09fa12df9e4d9e195		vpc-0cbfc0d30295f9d10
+VPC ID			vpc-09fa12df9e4d9e195		vpc-0cbfc0d30295f9d10
 CIDR Range		192.168.100.0/24			10.0.0.0/16
 Region			ap-south-1					ap-southeast-2
 
 ---
+### creating VPC Peering:
+1. we need other vpc in other region create VPC(use vpc and more option while creating vpc) with only private subnet in sydney region(make sure CIDR is different from source vpc(mumbai).)
+
+2. create VPC peering connection in source vpc(mumbai) on left pane in VPC console select peering connections click on create peering connection give name --> in requester section select our vpc(mumbai) --> in accepter section select my account(if our vpc is in other account select other account & give account id) --> in region section select another region select sydney(ap-south-1) region and give vpc id of accepter vpc(sydney vpc) --> click on create peering connection.
 
 Central NW Account = Place where TGW created..
 
