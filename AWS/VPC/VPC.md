@@ -346,12 +346,56 @@ Region			ap-south-1					ap-southeast-2
 1. we need other vpc in other region create VPC(use vpc and more option while creating vpc) with only private subnet in sydney region(make sure CIDR is different from source vpc(mumbai).)
 
 2. create VPC peering connection in source vpc(mumbai) on left pane in VPC console select peering connections click on create peering connection give name --> in requester section select our vpc(mumbai) --> in accepter section select my account(if our vpc is in other account select other account & give account id) --> in region section select another region select sydney(ap-south-1) region and give vpc id of accepter vpc(sydney vpc) --> click on create peering connection.
+![alt text](../.images/vpcp.png)
 
-Central NW Account = Place where TGW created..
+3. after creating the peering connection we need to accept the request in accepter vpc(sydney) goto peering connection console select the peering connection click on actions select accept request.
+![alt text](../.images/vpcp1.png)
+
+4. then we need to add the routes in both the vpc route tables in accepter vpc(sydney) route table add the route to source vpc(mumbai) cidr range(192.168.100.0/24) and in source vpc(mumbai) route table add the route to accepter vpc(sydney) cidr range(10.0.0.0/16).
+
+goto sydney VPC route table select the route table click on routes tab click on edit routes add the route to source vpc(mumbai) cidr range(192.168.100.0/24) and in target select the peering connection then give the peering connection. --> create the route. 
+![alt text](../.images/acceptorrt.png)
+then goto mumbai vpc route table select the route table click on routes tab click on edit routes add the route to accepter vpc(sydney) cidr range(![alt text](image-1.png)) and in target select the peering connection then give the peering connection. --> create the route.
+![alt text](../.images/SRCRT.png)
+
+then we can able access the resources in sydney vpc from mumbai vpc and vice versa.
+
+## Transit gateway:
+it is difficult to manage the multiple vpc peering connections for different vpc's so we use transit gateway to manage the multiple vpc peering connections. Transit gateway is a regional resource(By default a Transit Gateway only connects to VPCs inside its own account.) and it can be shared across multiple accounts using AWS RAM service.
+
+Central NW Account = Place where TGW created..(generally we use the dedicated account for TGW and networking purpose)
+
+
+### creating Transit Gateway for cross account VPC's communication:
+
+1. create transit gateway in mumbai region goto transit gateway console click on create transit gateway give name --> go with default options --> click on create transit gateway.
+![alt text](../.images/TGW.png)
+
+2. to connect cross account VPC's we need RAM service got RAM(resource access manager) console click on create resource share give name --> in resources section select the transit gateways the select the transit gateway we created in step-1 click next--> leave the policy as default click next --> in principals section select the account id then add account id other aws accounts we want to share the transit gateway with --> click next --> review the details and click create resource share.
+![alt text](../.images/RAM.png)
+![alt text](../.images/RAM1.png)
+![alt text](../.images/RAM2.png)
+
+3. in other aws account goto RAM console click on shared with me tab select the resource share invitation click that invitation and accept it.
+![alt text](../.images/RAM3.png)
+i don't another aws account so i am adding aviz account screenshots for reference.
+![alt text](../.images/RAM4.png)
+
+4. then create a transit gateway attachment in central networking account(where transit gateway is created) goto vpc console on left pane goto transit gateway setion click on transit gateway attachments click on create transit gateway attachment give name --> in transit gateway id section select the transit gateway we created in step-1 --> in attachement type select vpc --> in vpc section select the vpc we want to attach to transit gateway --> in subnet section select the subnets we want to attach to transit gateway --> click on create transit gateway attachment.
+![alt text](../.images/TGW1.png)
+
+5. repeat the above step in other aws account also. goto CNW account(where transit gateway is created)
+goto transit gateway attachments you can see the new attachment request from other aws account select that attachment click on actions select accept attachment request.
+![alt text](../.images/TGW2.png)
+
+6. add the route in other account vpc CIDR range in CNW account route table and in target select the transit gateway and then add the route of CNW account vpc CIDR range in other account route table and in target select the transit gateway.
+![alt text](../.images/TGW4.png)
+
+7. vpc in account-A want to communicate with vpc in account-C, in VPC-A route table add the route to VPC-C CIDR range and in target select the transit gateway(if VPC in A/C-A wants to communicate with A/C-B vpc i think we no need to add the route in A/C-B VPC-B route table) and i am not sure about this(in VPC-C route table add the route to VPC-A CIDR range and in target select the transit gateway. then we can able to communicate between VPC-A and VPC-C.)
 
 Step 1 : create a TGW/Transit Gateway in Central networking account.
 
-Step 2 : Share it Multiple AWS Accounts, Switch to other acounts RAM service and accept the invitation.
+Step 2 : Share it Multiple AWS Accounts, Switch to other accounts RAM service and accept the invitation.
 
 Step 3 : In central NW account, Create a TGW attachment with local VPCs desired subnets.. 
 
@@ -363,9 +407,65 @@ Step 6 : Edit Member account route table with "Central NW" Account VPC CIDR.
 
 Step 7 : Edit Central VPC account route table with "Member account"  VPC CIDR. 
 
+### creating Transit Gateway for same account different region VPC's communication:
+1. create the transit gateway in mumbai region and create transit gateway in sydney region.
+
+2. create a transit gateway attachment for VPC in mumbai region and create a transit gateway attachment for VPC in sydney region.(same like step-4 in TGW for cross account VPC's communication)
+
+3. In mumbai region create a transit gateway peering attachment goto transit gateway attachements click on create transit gateway attachment give name --> in transit gateway id section select the transit gateway --> in attachment type select peering connection --> in peering connection attachment section select my account --> give the sydney region --> then give the sydney region transit gateway id --> click on create transit gateway attachment.
+![alt text](../.images/TGW6.png)
+
+4. In sydney region create a transit gateway attachment console you will see the new attachment with peering as resource type select that attachment click on actions select accept attachment request.(after accepting the request in few minutes we can see the status as available.)
+![alt text](../.images/TGW5.png)
+
+5. Create the new transit gateway route in transit gateway route table in mumbai(transit gateway route table automatically created when we create a transit gateway) --> select the route table goto routes tab click on create static route give VPC CIDR(10.0.0.0/16) of sydney region and in target select the  transit gateway peering attachment. do the same in sydney region transit gateway route table add the route to mumbai region vpc cidr range and in target select the transit gateway peering attachment.
+![alt text](../.images/TGW8.png)
+
+
+6. goto mumbai region public route table in routes tab click on edit routes add the route to sydney region vpc cidr range and in target select the transit gateway. repeat the same step in sydney region route table add the route to mumbai region vpc cidr range and in target select the transit gateway.
+
+now you can able to communicate between mumbai region vpc and sydney region vpc. we can able to ssh into instances in sydney region instnace from mumbai region instance using private ip's.
+![alt text](../.images/TGW7.png)
+
+Step 1 : Create a TGW/Transit Gateway in Mumbai region and create a TGW in Sydney region.
+
+Step 2 : In Mumbai region, Create a TGW attachment with local VPC desired subnets. Repeat the same in Sydney region.
+
+Step 3 : In Mumbai region, Create a TGW peering attachment → Select the Mumbai TGW → Attachment type: Peering Connection → Select "My Account" → Choose Sydney region → Provide Sydney TGW ID.
+
+Step 4 : Switch to Sydney region TGW Attachments console → Select the new peering attachment → Actions → Accept Attachment Request.
+
+Step 5 : In Mumbai region TGW Route Table → Create Static Route → Destination: Sydney VPC CIDR → Target: Peering Attachment. Repeat in Sydney region TGW Route Table → Destination: Mumbai VPC CIDR → Target: Peering Attachment.
+
+Step 6 : Edit Mumbai region VPC Route Table → Add route → Destination: Sydney VPC CIDR → Target: Mumbai TGW.
+
+Step 7 : Edit Sydney region VPC Route Table → Add route → Destination: Mumbai VPC CIDR → Target: Sydney TGW.
+
+
+
 ---
 
-Site-2-Site VPN : 
+## Site-2-Site VPN : 
+it's used to create a secure, encrypted connection over the internet or via private IP between an on-premises data center, branch office, or corporate network and your Amazon Virtual Private Clouds (VPC)
+
+### creating Site-2-Site VPN:
+
+1.  create a customer gateway with office firewall device public ip. goto vpc console on left pane goto vpn sections click on customer gateways click on create customer gateway give name --> we need to give the public ip of our office firewall device(for testing giving random ip) --> click on create customer gateway.
+![alt text](../.images/s-svpn.png)
+
+2. create a virtual private gateway goto vpc console on left pane goto vpn sections click on virtual private gateways click on create virtual private gateway give name --> click on create virtual private gateway.(this is for aws end)
+![alt text](../.images/s-svpn1.png)
+
+3. create site-to-site vpn with CGW and VPGW. goto vpc console on left pane goto vpn sections click on site-to-site vpn connections click on create site-to-site vpn connection give name --> in target gateway section select virtual private gateway we created in step-2 --> in customer gateway section select the customer gateway we created in step-1 --> click on create site-to-site vpn connection.
+![alt text](../.images/s-svpn2.png)
+
+4. after creating the site-to-site vpn connection we need to download the configuration and provide it with Firewall team. select the site-to-site vpn connection click on actions select download configuration in prompt section select the vendor(paloalto, F5), platform and os version then click on download configuration.
+![alt text](../.images/s-svpn3.png)
+
+Dowloaded configuration file available in VPC directory.
+
+
+
 
 Step 1 : Create customer gateway with office firewall device public ip.
 
