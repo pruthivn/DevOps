@@ -1,0 +1,97 @@
+# RDS
+using this website we can identify if our data is breached or not: https://haveibeenpwned.com/
+
+**pre-requisite for RDS:** create DB subnet with at least 2 subnets.
+
+we can't connect to DB engine we can connect Database using DB client like MySQL workbench, DBeaver, Navicat, etc.
+
+1. Amazon Aurora (Mysql Compatable Edition & PostgreSQL Compatable)
+2. MySql : 3306			: Mysql Workbench / dbeaver
+3. MS Sql : 1433		: SSMS (Sql server management studio)
+4. MariaDB				: workbench
+5. PostgreSQL : 5432	: pgadmin / dbeaver
+6. Oracle DB : 1521		: sql developer / Toad
+7. IBM DB2				: ibm enterprise tool
+
+We dont get any chance to login to underlying OS, where DB is installed and running.
+
+## creating RDS Database:
+1. create DB subnet goto RDS -> Subnet groups -> Create DB subnet group -> give name and description -> select VPC and --> select availability zones --> add the 2 DB subnets created in VPC learning session. --> click create.
+![alt text](../.images/RDS.png)
+
+2. create SG for Database in myapp VPC(Mysql uses 3306 port) and route the traffic to SG of App servers(in demo we are connecting to WEB SG).
+![alt text](../.images/DBSG.png)
+
+3. creating DB goto RDS on leftpane click on databases -> Create database select full configuration -> select engine type (Mysql) --> select DB creation method full configuration --> select templates --> in Availability and durability section select deployment type (like single-AZ(available in free tier) or Multi-AZ) --> in credential settings section give username and password select self managed for testing(for prod we use secret manager) --> select the instance type --> select the storage type and size(storage defined here is only uses for DB not for OS) in additional configuration section enable storage autoscaling(it will automatically increase the storage size) --> in connectivity section select *Don’t connect to an EC2 compute resource*(if we go with other option it will create new security groups) select the myapp VPC and select the DB subnet group created in step 1 & select the "no" in public access section --> select the SG created in step 2(mysqlsg) --> select the AZ(DB instance will be created in this AZ) in additional configuration we can see port number is 3306(we can change port number but not recommended) --> in monitoring section enable enhanced monitoring in log exports section select audit, error, slowquery logs(we mostly use these 3 logs) --> in additional configuration section give the initial database name(it will automatically create a database in DB engine) for demo purpose(disable the encryption, backup, maintenance) --> click create database.
+![alt text](../.images/RDS1.png)
+
+
+4. After DB created, we can see the endpoint of DB in connectivity section, copy the endpoint  and create a CNAME in route53 to point to DB endpoint.
+
+database-1.chyaigmg00ss.ap-south-1.rds.amazonaws.com	--> pruthvilearnaws.shop(we follow this approach in organisations)
+admin
+Pruthvi123
+---
+
+When DB created, We dont get IP Address, We get a DNS name.
+
+Also, DNS name is hard to remember, So, We can add an CNAME in route53.(by any chance if DB is down it will come with new endpoint it's difficult to update the DNS name in all the applications, so we can add a CNAME in route53 and point to DB endpoint, so if DB is down and it comes with new endpoint we can update the CNAME in route53 and all the applications will work without any changes.)
+
+
+---
+
+**Note:** if your jump server is Linux, install mysql client tool to connect to DB.
+
+dnf install mariadb105 -y
+
+mysql -h pruthvilearnaws.shop -u admin -P 3306 -p
+
+## connecting with cloud shell
+1. in mysqlsg add the self referring SG(means create inbound rule with source as mysqlsg itself) then we can connect to DB other wise we will get timeout error.
+![alt text](../.images/RDS3.png)
+
+2. goto RDS -> databases -> select the DB created -> goto connectivity & security section select cloud shell and click on launch cloud shell, it will open the cloud shell copy the command and paste it on terminal and enter password.(if you get timeout error check the SG for self referring inbound rule is created or not.)
+![alt text](../.images/RDS4.png)
+
+
+some sql commands
+
+
+SHOW DATABASES;
+CREATE DATABASE mydb;
+USE mydb;
+
+SHOW TABLES;
+
+CREATE TABLE users (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	name VARCHAR(100),
+	age INT
+);
+
+DESC users;
+
+INSERT INTO users (name, age) VALUES ('Avinash' , 35);
+INSERT INTO users (name, age) VALUES ('Anudeep' , 33);
+INSERT INTO users (name, age) VALUES ('Aravind' , 31);
+INSERT INTO users (name, age) VALUES ('Vikas' , 26);
+
+INSERT INTO users (name, age) VALUES ('Vikas2' , 24);
+
+SELECT * FROM users;
+SELECT * FROM users LIMIT 1;
+SELECT name FROM users WHERE age > 33;
+
+UPDATE users SET age = 30 WHERE name = 'Aravind';
+
+DELETE FROM users WHERE name = 'Avinash';
+
+DROP DATABASE mydb;
+
+
+
+DROP TABLE <Table_Name> or DROP TABLE IF EXISTS <Table_Name>
+TRUNCATE TABLE <Table_Name> 		--> To delete all the data from a table
+
+
+

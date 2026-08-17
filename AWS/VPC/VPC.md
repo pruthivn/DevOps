@@ -172,7 +172,7 @@ Ans: RouteTable, NACL, DefaultSecurityGroup
 
 
 
-1. reate a VPC with CIDR range we selected. goto vpc console click on create VPC --> select VPC only give VPC name --> in ipv4 CIDR section select *IPv4 CIDR manual input* give VPC range 192.168.100.0/24(if we are using IPAM tool we will select *IPAM-allocated IPv4 CIDR block*) --> go with Default option click create VPC.
+1. create a VPC with CIDR range we selected. goto vpc console click on create VPC --> select VPC only give VPC name --> in ipv4 CIDR section select *IPv4 CIDR manual input* give VPC range 192.168.100.0/24(if we are using IPAM tool we will select *IPAM-allocated IPv4 CIDR block*) --> go with Default option click create VPC.
 ![alt text](../.images/VPC.png)
 
 2. Creating Subnets on left pane click on subnets click on create subnet --> select our VPC --> in Subnet section give the name for subnet select availability zone and give subnet CIDR block(like 192.168.100.0/27). --> click on add subnet to create multiple subnets.
