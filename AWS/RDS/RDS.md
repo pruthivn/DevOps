@@ -1,6 +1,8 @@
 # RDS
 using this website we can identify if our data is breached or not: https://haveibeenpwned.com/
 
+**Note:** Single AZ provides 99.5% availability and Multi-AZ provides 99.95% availability.
+
 **pre-requisite for RDS:** create DB subnet with at least 2 subnets.
 
 we can't connect to DB engine we can connect Database using DB client like MySQL workbench, DBeaver, Navicat, etc.
@@ -93,5 +95,25 @@ DROP DATABASE mydb;
 DROP TABLE <Table_Name> or DROP TABLE IF EXISTS <Table_Name>
 TRUNCATE TABLE <Table_Name> 		--> To delete all the data from a table
 
+## Multi-AZ RDS Database:
+in Multi-AZ we have 2 replica's in 2 AZ's if one AZ goes down the other AZ will take over and we can connect to DB without any downtime.(we can't see and we can't directly connect to DB Back up)
 
+## Creating Read Replica:
+we will use read replica for reading the data only so we will go with less powerful DB engines. 
 
+**Note:** in free tier account we can't create read replica's.
+
+we will not get data transfer charges for read replica if it is in same region as primary DB, but if it is in different region we will get data transfer charges.(it's applicalble for almost every AWS service)
+
+1. Goto RDS -> databases -> select the DB created -> click on actions -> create read replica --> give the name for read replica --> select the instance type --> select the region where we want to create read replica --> in storage section select the storage type and size --> 
+in availability section select the single AZ(it's read replica we won't use Multi-AZ) --> in connectivity section select ipv4 disable public access, select the AZ select the existing SG(mysqlsg) --> enable password authentication --> in mointoring section if you want to monitor the read replica enable enhanced monitoring(otherwise disable it) --> click create read replica.
+
+**Note:** in free tier account we can't create read replica's.
+
+Note: if you promote the Read replica it will become a standalone DB and it will not be in sync with primary DB, so we can use it for writing the data also.(goto RDS -> databases -> select the read replica created -> click on actions -> click on Promote.)
+![alt text](../.images/RR.png)
+
+Note: we can't stop RDS DB permanently, we can only stop it for 7 days, after that it will automatically start. using event bridge and lambda we can stop the RDS DB for more than 7 days.(using lambda we will check the status of RDS DB if it is running we will stop it using event bridge we will create a cron job to run this lambda function every 7 days.)
+
+## AWS Aurora:
+Amazon Aurora is built by aws by taking the MySQL and PostgreSQL open source DB as reference(like how redhat built redhat linux by taking linux as reference) it's has 5 times better performance than MySQL and 3 times better performance than PostgreSQL. it's serverless we will not manage server AWS will manage the server.
