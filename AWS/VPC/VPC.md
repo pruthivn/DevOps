@@ -299,6 +299,7 @@ We have option to enable logs at
 
 1. before creating flow logs we need to create a log group in cloudwatch goto cloudwatch console on left pane click on logs then click on log management then click on create log group give name --> rentention seetings(how many you will store logs like 7days or 90 days etc.) --> explore other options --> click on create.
 ![alt text](../.images/loggroup.png)
+
 2. goto vpc console select vpc select the flow logs tab click on create flow log --> give name --> in filter section select the type of traffic you want to capture(accept / reject / all) --> in maximum aggregation section select 1 min --> in destination section select the cloudwatch logs select the log group we created in step-1.(we can send the logs to S3 also but to see those logs we need to use glue and uses sql queries to see the logs it's complex but cloud watch also supports alarms as well.) --> in service role section select the new role --> log format select the default format(we can use custom format as well)
 ![alt text](../.images/flowlog.png)
 
@@ -313,9 +314,9 @@ Note: we can also create flow logs at subnet level and instance level as well bu
 
 ---
 ## VPC Endpoints:
-VPC endpoints are used to connect to AWS services without using public IPs or going through the internet. VPC endpoints are virtual devices that enable private connections between your VPC and supported AWS services and VPC endpoint services powered by AWS PrivateLink.
+VPC endpoints are used to connect to AWS services without using public IPs or going through the internet. VPC endpoints are virtual devices that enable private connections between your VPC and supported AWS services, VPC endpoint services powered by AWS PrivateLink.
 
-Endpoints: Access S3/dynamodb / other resources without internet using endpoints
+Endpoints: Access S3/dynamodb / other resources without internet using endpoin`ts
 
 1. goto vpc console on left pane select endpoints click on create endpoint give name --> enable cross region endpoint(if required) --> in services section type s3 click enter we have 2 types gateway(aws managed only charges for data transfer) and interface(if we select this it creates ENI(elastic subnet interface) in our subnet it costs per hour and also charges data transfer as well) endpoint select the gateway endpoint --> select our VPC --> in configure route tables section select the route table where our private instance are running(private with internet) --> in policy section select the full access(for s3) --> click on create endpoint.
 ![alt text](../.images/vpcep.png)
@@ -333,18 +334,19 @@ This helps to enable communication between 2 VPCs. to enable communication betwe
 
 VPC peering is Non-Transitive peering.
 
-qw need below details to create a VPC peering connection between 2 VPCs.
+we need below details to create a VPC peering connection between 2 VPCs.
 
-				Requester VPC				Accepter VPC
-Acc ID			655700896650				655700896650
-VPC ID			vpc-09fa12df9e4d9e195		vpc-0cbfc0d30295f9d10
-CIDR Range		192.168.100.0/24			10.0.0.0/16
-Region			ap-south-1					ap-southeast-2
+| Field | Requester VPC | Accepter VPC |
+| --- | --- | --- |
+| Acc ID | 655700896650 | 655700896650 |
+| VPC ID | vpc-09fa12df9e4d9e195 | vpc-0cbfc0d30295f9d10 |
+| CIDR Range | 192.168.100.0/24 | 10.0.0.0/16 |
+| Region | ap-south-1 | ap-southeast-2 |
+
 
 ---
 ### creating VPC Peering:
 1. we need other vpc in other region create VPC(use vpc and more option while creating vpc) with only private subnet in sydney region(make sure CIDR is different from source vpc(mumbai).)
-
 2. create VPC peering connection in source vpc(mumbai) on left pane in VPC console select peering connections click on create peering connection give name --> in requester section select our vpc(mumbai) --> in accepter section select my account(if our vpc is in other account select other account & give account id) --> in region section select another region select sydney(ap-south-1) region and give vpc id of accepter vpc(sydney vpc) --> click on create peering connection.
 ![alt text](../.images/vpcp.png)
 
@@ -378,7 +380,7 @@ Central NW Account = Place where TGW created..(generally we use the dedicated ac
 
 3. in other aws account goto RAM console click on shared with me tab select the resource share invitation click that invitation and accept it.
 ![alt text](../.images/RAM3.png)
-i don't another aws account so i am adding aviz account screenshots for reference.
+i don't have another aws account so i am adding aviz account screenshots for reference.
 ![alt text](../.images/RAM4.png)
 
 4. then create a transit gateway attachment in central networking account(where transit gateway is created) goto vpc console on left pane goto transit gateway setion click on transit gateway attachments click on create transit gateway attachment give name --> in transit gateway id section select the transit gateway we created in step-1 --> in attachement type select vpc --> in vpc section select the vpc we want to attach to transit gateway --> in subnet section select the subnets we want to attach to transit gateway --> click on create transit gateway attachment.

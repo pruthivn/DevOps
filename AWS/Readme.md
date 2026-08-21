@@ -701,3 +701,143 @@ Instance Warm-up Period – Time given to a newly launched instance before it st
 
 Lifecycle Hooks – Allow you to pause instances during launch or termination to perform custom actions (e.g., pulling config, draining connections)
 
+## S3:
+S3: Object Based Storage : GDrive / Dropbox / icloud
+
+EBS : Block Based Storage : 
+
+EFS : Shared Storage / Store over the Network (SAN/NAS)
+
+S3 is an object based storage solution.. 
+We can upload anything and we call it as object.
+
+We can store data into "Bucket".. Unique namespace across the globe..
+
+bucket = folder / directory..
+
+
+S3 bucket name minimum 3 characters and maximum 63 characters.
+
+Bucket name must start with a lowercase letter or number
+Bucket name must not end with dash or period
+The bucket name contains characters that aren't valid: ,
+Bucket name must not contain two adjacent periods
+Bucket name must not resemble an IP address
+
+We use s3 platform to store static data..
+
+We can store unlimited data inside an s3 bucket. 
+
+Min Obj size : 0 bytes
+Max Obj size : 50 TB
+
+s3 : 
+
+Virtual path:
+https://bucket-name.region-code.amazonaws.com/object-name
+https://bucket-name.s3.amazonaws.com/object-name
+
+Standard path: https://s3.region-code.amazonaws.com/bucket-name/object-name
+
+--
+
+By default, all data we upload to s3 is private. We need to make it public to share the data over the internet.
+
+3 Level public block access settings available in AWS.
+
+1. Account level block public access - Disabled by defaultly
+2. Bucket level block public access - Enabled by defaultly
+3. Object level settings
+
+We have 2 ways to make data public
+--> ACL --> Disabled by defaultly, Enable it. (one time)
+--> Bucket policy
+
+---
+
+AWS Pricing:
+How many API calls hapening on our data. (PUT/GET)
+How much data transferring
+
+
+
+S3 Standard : Frequently Accessed Data.. 
+** We can access data without any delays.
+Data will be span across multiple AZs, Data replicates >=3 AZs(it stores in backend we can't see)
+99.99% Availability
+99.999999999 % Durability
+
+
+S3 Standard - IA (Infrequently Access) / OneZone - IA : Infrequently accessed data (once a month) with milliseconds access
+OneZone - IA : Recreatable, infrequently accessed data (once a month) with milliseconds access
+**We can access data without any delays.
+Data will be span across multiple AZs, Data replicates >=3 AZs
+
+
+S3 Glacier (Instant Retrival / Flexible retrival / Deep Archieve) : 
+**We cannot access data immediatly.. 
+
+Glacier Instant Retrieval: Long-lived archive data accessed once a quarter with instant retrieval in milliseconds
+Glacier Flexible Retrieval (formerly Glacier) : Long-lived archive data accessed once a year with retrieval of minutes to hours
+Glacier Deep Archive : Long-lived archive data accessed less than once a year with retrieval of hours
+
+To access the data stored in glacier, We need to initialise the restoration.
+
+Bulk retrieval: Typically within 5-12 hours.
+
+Standard retrieval: Typically within 3-5 hours.
+
+Expedited retrieval: Typically within 1-5 minutes when retrieving less than 250 MB.
+
+**Note:** once we moved the object from standard to glacier(Flexible Retrieval or Deep Archive) we can't move it back to standard(we can restore the data and download it then upload that data to standard again). if we move the object from standard to any other class other than glacier flexible retrieval or deep archive, we can move it back to standard directly.
+![alt text](.images/S3.png)
+
+
+
+S3 Intelligent Tier: S3 Intelligent-Tiering is a storage class that automatically moves objects between different S3 tiers based on changing access patterns.(If not accessed for 30 days → moves to Infrequent Access tier, If not accessed for 90 days → moves to Archive Access tier, If not accessed for 180 days → moves to Deep Archive Access tier)
+
+### S3 versioning:
+S3 Versioning:
+
+THis help us to maintain multiple versions of an object within same bucket.
+
+By Defaultly, Versioning is suspended in new buckets. 
+If We can enable this, S3 will keep track of the file changes. 
+
+--> When we delete any file accidentally, we can recover it.
+
+Delete : if we type *delete*, we can recover. S3 will create a "Delete Marker", Delete the delete marker to get your object back.(we see this option when we enable versioning and turn off show versions(see the below image) in bucket)
+
+Permanently Delete : if we type *permanently delete*, no recover option.(if we can see this if versioning not enabled or show versions is turn on)
+
+![alt text](.images/versioning.png)
+
+### S3 Lifecycle:
+using this we automatically move the data from one storage class to another storage class based on the rules we created. we can also delete the data after certain period of time.
+
+it will cost per transistion.
+
+#### creating lifecycle rules:
+1. goto s3 console --> select the bucket --> click on management tab --> click on create lifecycle rule --> give the name and description --> in rule scope section we have 2 options 1. apply to all objects in the bucket 2. limit the scope of this rule using prefix(if we have three folders in bucket if we give dev it will apply the rules to dev only) or tags(if will only applicable to objects with specific tags) or object size(if we want to apply the rules to objects with specific size) --> in lifecycle rule actions section we have different versions 1. is current version actions(we get 2 tabs below 1. transition current version to another storage class(in this we will tell after how many days transition will performed) 2. Expire current version of objects(we will tell after how many days the object will be deleted)) 2. similary we will get the same options for non-current version actions but we will get one more option to restore the latest version of the object from non-curent version(for back up purpose) --> in review section we can see the summary of the rules we created click on create rule.
+![alt text](.images/S3lifecycle.png)
+ 
+in the image at the end you can see for current version after 365 object will expire(we retrive that object for current version if we click on delete it will show delete option not permanently delete because we have versioning enabled) but for non-current version it will show permenately deleted.
+
+### Replication rules:
+helps to replicate the data from one bucket to another bucket.(use this mostly for Disaster recovery purpose or report sharing purpose)
+
+**prerequisites:** Enable versioning in source and destination bucket.
+
+SRR (Same Region replication) : Source and destination bucket will be in same region.
+
+CRR (Cross Region replication) : Source and destination bucket will be in different regions.
+
+Cross Account replication : Source and destination bucket will be in different accounts.
+
+![alt text](.images/replicarule.png)
+
+Note:   
+1. If you delete an object normally (without specifying a version ID), S3 creates a Delete Marker. S3 will replicate the Delete Marker to the destination bucket. The object will now look "deleted" in both buckets, but all historical versions remain safe underneath.
+
+2. If you explicitly delete(permanently delete) a specific Version ID, that version is gone forever from the source. S3 will NOT replicate this permanent deletion. The version remains safely stored in your destination bucket. This is an intentional security design to stop accidental or malicious data wipes from destroying your backups
+
