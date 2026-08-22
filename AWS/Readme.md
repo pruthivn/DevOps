@@ -823,6 +823,8 @@ it will cost per transistion.
  
 in the image at the end you can see for current version after 365 object will expire(we retrive that object for current version if we click on delete it will show delete option not permanently delete because we have versioning enabled) but for non-current version it will show permenately deleted.
 
+Note: life cycle rule follows top to bottom approach if we conver the standard to IA we can't convert it back to standard.
+![alt text](.images/S3LC.png)
 ### Replication rules:
 helps to replicate the data from one bucket to another bucket.(use this mostly for Disaster recovery purpose or report sharing purpose)
 
@@ -841,3 +843,121 @@ Note:
 
 2. If you explicitly delete(permanently delete) a specific Version ID, that version is gone forever from the source. S3 will NOT replicate this permanent deletion. The version remains safely stored in your destination bucket. This is an intentional security design to stop accidental or malicious data wipes from destroying your backups
 
+### Creating replication:
+1. create a s3 bucket in differnet region and enable versioning in both source and destination bucket.
+2. goto source bucket --> click on management tab --> click on replication rules --> click on create replication rule --> give the name --> we can enable and disable this rule using enable/disable button --> priority(if we have multiple rules copying same object to destination we can set this priority) --> in Source bucket section we can select which object to sync --> in destination bucket section browse the bucket if your bucket is in same account selct the *specify bucket in other account* and give account id and bucket name --> se;ect the new IAM role --> enable encryption if you want --> Destination storage class we can put our replicated object in differnet storage class like IA, glacier etc. --> and enable replication metrics(useful to track if object replication fails we can create alerts also) and delete marker replication --> click save. 
+2. after saving the rule it will ask to replicate existing objects or not.(if you give yes it will create one time batch job to replicate the existing objects from source bucket to destination bucket)
+![alt text](.images/Replicarule2.png)
+
+## S3 Events:
+Amazon S3 Event Notifications allow you to trigger automated workflows when specific actions occur in your storage bucket.(like sending sns notification or lambda function trigger when an object is created in s3 bucket.)
+
+Lambda function : Run a Lambda function script based on S3 events.
+
+SNS topic : Fanout messages to systems for parallel processing or directly to people.
+
+SQS queue : Send notifications to an SQS queue to be read by a server.
+
+### creating S3 event notification:
+1. select the bucket --> click on properties tab --> scroll down to event notification section --> click on create event notification --> give the name --> in event types section select the events(like object creation, object deletion) --> in destination section select the destination type(like lambda, sns, sqs) --> click save changes.
+
+![alt text](.images/S3events.png)
+
+## AWS KMS(Key Management Service):
+AWS Key Management Service (AWS KMS) is a secure, managed tool to create and control the cryptographic keys used to encrypt and sign your data.
+
+Encryption : 
+
+In-Transit Encryption / At Flight Encryption : When data is in flught state / travelling state to s3 platform, data will be encrypted. Its AWS responsibility.
+
+
+Client Side Encryption : before uplaoding data to s3 platform, we cna use our own encry method and encrypt the data.. Customer responsibility..
+
+Server Side Side Encryption : When data is in s3 platform, we can apply encyption methods.
+
+SSE-S3 : Defualt encryption key.. 
+--> S3 generates and managed the key material..
+--> Whoever has access to s3 platform, they can decrypt the data.. No Additional permissions required..
+--> Suitable for public sharable data..
+--> No direct access to key/material to user.
+
+---
+
+SSE-KMS - DMK (Default Master Key)..
+--> KMS Service generates and manages the key material..
+--> Whoever has access to s3 platform, they can decrypt the data.. No Additional permissions required..
+--> No direct access to key/material to user.
+--> We cannot make object public, if object is encrypted using KMS key..
+
+---
+
+SSE-KMS - CMK (Customer Managed Key)..
+--> Customer has to create the KMS key and KMS Service manages the key material.. We can use this key to multiple AWS services
+--> Along with the S3 Service access, User/Role should have KMS Key usage permissions to decrypt the data..
+--> No direct access to key/material to user. But customer can rotate the key material..
+--> We cannot make object public, if object is encrypted using KMS key..
+
+---
+
+SSE-KMS - C (Customer Provided Key)..
+--> Customer has to create the KMS key and Customer has to manages the key material.. We can use this key with multiple AWS services
+--> Along with the S3 Service access, User/Role should have KMS Key usage permissions to decrypt the data..
+--> Customer can manage / rotate the key material.
+--> We cannot make object public, if object is encrypted using KMS key..
+
+Symmetric Key : A single key will be used for encryption and decryption purposes. : ** S3
+
+Asymetric key : A public and krivate key pair used for encrypting and decrypting data. signing and verifying messages.
+
+### Creation of KMS customer managed key(CMK):
+1. goto KMS console --> click on customer managed keys on left pane --> click on create key --> select the key type symmetric(asymmetric key is not supported for s3) go with default options click next --> provide the key alias(name) and description --> click next --> in key administrative permissions section add the user who can manage the key --> click next --> in key usage permissions section add the user who can use the key for encryption and decryption if you want to use this key in other AWS accounts below add other aws account and provide account id --> click next --> add the policy statement if you want --> click next --> review the settings and click on create key.
+![alt text](.images/kms.png)
+![alt text](.images/kms1.png)
+![alt text](.images/kms2.png)
+![alt text](.images/kms4.png)
+![alt text](.images/kms5.png)
+![alt text](.images/kms6.png)
+
+2. we can rotate this key material automatically or manually. click on the key we created *Key material and rotations* you have ondemand rotation and automatic rotation(by default it is disabled) options. 
+![alt text](.images/kms7.png)
+
+3. after clicking on the key we created we can see key user section in key policy tab who ever the users/roles added there can access the s3 bucket objects which is encrypted using this key.
+
+4. attach this kms key to s3 bucket. select the bucket --> click on properties tab --> scroll down to default encryption section --> click on edit --> select the *AWS Key Management Service key (SSE-KMS)* option --> select the key we created in previous step --> click save changes.
+
+Note: if we accidentally delete the key we created, we will not able to access and decrypt(object data) the objects in s3 bucket which is encrypted using this key. we can't delete kms key immediately we need to schedule the deletion of the key minimum 7 days to 30 days. 
+
+Key creation steps: 
+
+Step 1 : Symmetric Key.. "Encryption and Decryption"..
+
+Step 2 : Privide name and descr
+
+Step 3 : Key administrative permissions : Avinash_T
+
+Step 4 : Key usage permissions : Avinash_T
+
+Step 5 : Review policy and create key
+
+## S3 static website hosting:
+Static Website : S3 supports static website hosting
+
+Bucket Name = Domain Name
+
+--> NO need to run our server 24x7 for our static website
+--> Defualt, our website gets S3 performance
+
+3500 PUT Operations per Second		--> Upload
+5500 GET Operations per Second		--> Download/access/get
+
+--> We have to make our s3 bucket public
+--> It runs with http protocol 
+--> Integrate with cloudfront for https and Private buckets
+
+
+http status codes:
+
+2XX : ok/success
+3XX : Redirect
+4XX : Client Side error
+5XX : Server Side error
