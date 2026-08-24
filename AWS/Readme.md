@@ -701,3 +701,263 @@ Instance Warm-up Period – Time given to a newly launched instance before it st
 
 Lifecycle Hooks – Allow you to pause instances during launch or termination to perform custom actions (e.g., pulling config, draining connections)
 
+## S3:
+S3: Object Based Storage : GDrive / Dropbox / icloud
+
+EBS : Block Based Storage : 
+
+EFS : Shared Storage / Store over the Network (SAN/NAS)
+
+S3 is an object based storage solution.. 
+We can upload anything and we call it as object.
+
+We can store data into "Bucket".. Unique namespace across the globe..
+
+bucket = folder / directory..
+
+
+S3 bucket name minimum 3 characters and maximum 63 characters.
+
+Bucket name must start with a lowercase letter or number
+Bucket name must not end with dash or period
+The bucket name contains characters that aren't valid: ,
+Bucket name must not contain two adjacent periods
+Bucket name must not resemble an IP address
+
+We use s3 platform to store static data..
+
+We can store unlimited data inside an s3 bucket. 
+
+Min Obj size : 0 bytes
+Max Obj size : 50 TB
+
+s3 : 
+
+Virtual path:
+https://bucket-name.region-code.amazonaws.com/object-name
+https://bucket-name.s3.amazonaws.com/object-name
+
+Standard path: https://s3.region-code.amazonaws.com/bucket-name/object-name
+
+--
+
+By default, all data we upload to s3 is private. We need to make it public to share the data over the internet.
+
+3 Level public block access settings available in AWS.
+
+1. Account level block public access - Disabled by defaultly
+2. Bucket level block public access - Enabled by defaultly
+3. Object level settings
+
+We have 2 ways to make data public
+--> ACL --> Disabled by defaultly, Enable it. (one time)
+--> Bucket policy
+
+---
+
+AWS Pricing:
+How many API calls hapening on our data. (PUT/GET)
+How much data transferring
+
+
+
+S3 Standard : Frequently Accessed Data.. 
+** We can access data without any delays.
+Data will be span across multiple AZs, Data replicates >=3 AZs(it stores in backend we can't see)
+99.99% Availability
+99.999999999 % Durability
+
+
+S3 Standard - IA (Infrequently Access) / OneZone - IA : Infrequently accessed data (once a month) with milliseconds access
+OneZone - IA : Recreatable, infrequently accessed data (once a month) with milliseconds access
+**We can access data without any delays.
+Data will be span across multiple AZs, Data replicates >=3 AZs
+
+
+S3 Glacier (Instant Retrival / Flexible retrival / Deep Archieve) : 
+**We cannot access data immediatly.. 
+
+Glacier Instant Retrieval: Long-lived archive data accessed once a quarter with instant retrieval in milliseconds
+Glacier Flexible Retrieval (formerly Glacier) : Long-lived archive data accessed once a year with retrieval of minutes to hours
+Glacier Deep Archive : Long-lived archive data accessed less than once a year with retrieval of hours
+
+To access the data stored in glacier, We need to initialise the restoration.
+
+Bulk retrieval: Typically within 5-12 hours.
+
+Standard retrieval: Typically within 3-5 hours.
+
+Expedited retrieval: Typically within 1-5 minutes when retrieving less than 250 MB.
+
+**Note:** once we moved the object from standard to glacier(Flexible Retrieval or Deep Archive) we can't move it back to standard(we can restore the data and download it then upload that data to standard again). if we move the object from standard to any other class other than glacier flexible retrieval or deep archive, we can move it back to standard directly.
+![alt text](.images/S3.png)
+
+
+
+S3 Intelligent Tier: S3 Intelligent-Tiering is a storage class that automatically moves objects between different S3 tiers based on changing access patterns.(If not accessed for 30 days → moves to Infrequent Access tier, If not accessed for 90 days → moves to Archive Access tier, If not accessed for 180 days → moves to Deep Archive Access tier)
+
+### S3 versioning:
+S3 Versioning:
+
+THis help us to maintain multiple versions of an object within same bucket.
+
+By Defaultly, Versioning is suspended in new buckets. 
+If We can enable this, S3 will keep track of the file changes. 
+
+--> When we delete any file accidentally, we can recover it.
+
+Delete : if we type *delete*, we can recover. S3 will create a "Delete Marker", Delete the delete marker to get your object back.(we see this option when we enable versioning and turn off show versions(see the below image) in bucket)
+
+Permanently Delete : if we type *permanently delete*, no recover option.(if we can see this if versioning not enabled or show versions is turn on)
+
+![alt text](.images/versioning.png)
+
+### S3 Lifecycle:
+using this we automatically move the data from one storage class to another storage class based on the rules we created. we can also delete the data after certain period of time.
+
+it will cost per transistion.
+
+#### creating lifecycle rules:
+1. goto s3 console --> select the bucket --> click on management tab --> click on create lifecycle rule --> give the name and description --> in rule scope section we have 2 options 1. apply to all objects in the bucket 2. limit the scope of this rule using prefix(if we have three folders in bucket if we give dev it will apply the rules to dev only) or tags(if will only applicable to objects with specific tags) or object size(if we want to apply the rules to objects with specific size) --> in lifecycle rule actions section we have different versions 1. is current version actions(we get 2 tabs below 1. transition current version to another storage class(in this we will tell after how many days transition will performed) 2. Expire current version of objects(we will tell after how many days the object will be deleted)) 2. similary we will get the same options for non-current version actions but we will get one more option to restore the latest version of the object from non-curent version(for back up purpose) --> in review section we can see the summary of the rules we created click on create rule.
+![alt text](.images/S3lifecycle.png)
+ 
+in the image at the end you can see for current version after 365 object will expire(we retrive that object for current version if we click on delete it will show delete option not permanently delete because we have versioning enabled) but for non-current version it will show permenately deleted.
+
+Note: life cycle rule follows top to bottom approach if we conver the standard to IA we can't convert it back to standard.
+![alt text](.images/S3LC.png)
+### Replication rules:
+helps to replicate the data from one bucket to another bucket.(use this mostly for Disaster recovery purpose or report sharing purpose)
+
+**prerequisites:** Enable versioning in source and destination bucket.
+
+SRR (Same Region replication) : Source and destination bucket will be in same region.
+
+CRR (Cross Region replication) : Source and destination bucket will be in different regions.
+
+Cross Account replication : Source and destination bucket will be in different accounts.
+
+![alt text](.images/replicarule.png)
+
+Note:   
+1. If you delete an object normally (without specifying a version ID), S3 creates a Delete Marker. S3 will replicate the Delete Marker to the destination bucket. The object will now look "deleted" in both buckets, but all historical versions remain safe underneath.
+
+2. If you explicitly delete(permanently delete) a specific Version ID, that version is gone forever from the source. S3 will NOT replicate this permanent deletion. The version remains safely stored in your destination bucket. This is an intentional security design to stop accidental or malicious data wipes from destroying your backups
+
+### Creating replication:
+1. create a s3 bucket in differnet region and enable versioning in both source and destination bucket.
+2. goto source bucket --> click on management tab --> click on replication rules --> click on create replication rule --> give the name --> we can enable and disable this rule using enable/disable button --> priority(if we have multiple rules copying same object to destination we can set this priority) --> in Source bucket section we can select which object to sync --> in destination bucket section browse the bucket if your bucket is in same account selct the *specify bucket in other account* and give account id and bucket name --> se;ect the new IAM role --> enable encryption if you want --> Destination storage class we can put our replicated object in differnet storage class like IA, glacier etc. --> and enable replication metrics(useful to track if object replication fails we can create alerts also) and delete marker replication --> click save. 
+2. after saving the rule it will ask to replicate existing objects or not.(if you give yes it will create one time batch job to replicate the existing objects from source bucket to destination bucket)
+![alt text](.images/Replicarule2.png)
+
+## S3 Events:
+Amazon S3 Event Notifications allow you to trigger automated workflows when specific actions occur in your storage bucket.(like sending sns notification or lambda function trigger when an object is created in s3 bucket.)
+
+Lambda function : Run a Lambda function script based on S3 events.
+
+SNS topic : Fanout messages to systems for parallel processing or directly to people.
+
+SQS queue : Send notifications to an SQS queue to be read by a server.
+
+### creating S3 event notification:
+1. select the bucket --> click on properties tab --> scroll down to event notification section --> click on create event notification --> give the name --> in event types section select the events(like object creation, object deletion) --> in destination section select the destination type(like lambda, sns, sqs) --> click save changes.
+
+![alt text](.images/S3events.png)
+
+## AWS KMS(Key Management Service):
+AWS Key Management Service (AWS KMS) is a secure, managed tool to create and control the cryptographic keys used to encrypt and sign your data.
+
+Encryption : 
+
+In-Transit Encryption / At Flight Encryption : When data is in flught state / travelling state to s3 platform, data will be encrypted. Its AWS responsibility.
+
+
+Client Side Encryption : before uplaoding data to s3 platform, we cna use our own encry method and encrypt the data.. Customer responsibility..
+
+Server Side Side Encryption : When data is in s3 platform, we can apply encyption methods.
+
+SSE-S3 : Defualt encryption key.. 
+--> S3 generates and managed the key material..
+--> Whoever has access to s3 platform, they can decrypt the data.. No Additional permissions required..
+--> Suitable for public sharable data..
+--> No direct access to key/material to user.
+
+---
+
+SSE-KMS - DMK (Default Master Key)..
+--> KMS Service generates and manages the key material..
+--> Whoever has access to s3 platform, they can decrypt the data.. No Additional permissions required..
+--> No direct access to key/material to user.
+--> We cannot make object public, if object is encrypted using KMS key..
+
+---
+
+SSE-KMS - CMK (Customer Managed Key)..
+--> Customer has to create the KMS key and KMS Service manages the key material.. We can use this key to multiple AWS services
+--> Along with the S3 Service access, User/Role should have KMS Key usage permissions to decrypt the data..
+--> No direct access to key/material to user. But customer can rotate the key material..
+--> We cannot make object public, if object is encrypted using KMS key..
+
+---
+
+SSE-KMS - C (Customer Provided Key)..
+--> Customer has to create the KMS key and Customer has to manages the key material.. We can use this key with multiple AWS services
+--> Along with the S3 Service access, User/Role should have KMS Key usage permissions to decrypt the data..
+--> Customer can manage / rotate the key material.
+--> We cannot make object public, if object is encrypted using KMS key..
+
+Symmetric Key : A single key will be used for encryption and decryption purposes. : ** S3
+
+Asymetric key : A public and krivate key pair used for encrypting and decrypting data. signing and verifying messages.
+
+### Creation of KMS customer managed key(CMK):
+1. goto KMS console --> click on customer managed keys on left pane --> click on create key --> select the key type symmetric(asymmetric key is not supported for s3) go with default options click next --> provide the key alias(name) and description --> click next --> in key administrative permissions section add the user who can manage the key --> click next --> in key usage permissions section add the user who can use the key for encryption and decryption if you want to use this key in other AWS accounts below add other aws account and provide account id --> click next --> add the policy statement if you want --> click next --> review the settings and click on create key.
+![alt text](.images/kms.png)
+![alt text](.images/kms1.png)
+![alt text](.images/kms2.png)
+![alt text](.images/kms4.png)
+![alt text](.images/kms5.png)
+![alt text](.images/kms6.png)
+
+2. we can rotate this key material automatically or manually. click on the key we created *Key material and rotations* you have ondemand rotation and automatic rotation(by default it is disabled) options. 
+![alt text](.images/kms7.png)
+
+3. after clicking on the key we created we can see key user section in key policy tab who ever the users/roles added there can access the s3 bucket objects which is encrypted using this key.
+
+4. attach this kms key to s3 bucket. select the bucket --> click on properties tab --> scroll down to default encryption section --> click on edit --> select the *AWS Key Management Service key (SSE-KMS)* option --> select the key we created in previous step --> click save changes.
+
+Note: if we accidentally delete the key we created, we will not able to access and decrypt(object data) the objects in s3 bucket which is encrypted using this key. we can't delete kms key immediately we need to schedule the deletion of the key minimum 7 days to 30 days. 
+
+Key creation steps: 
+
+Step 1 : Symmetric Key.. "Encryption and Decryption"..
+
+Step 2 : Privide name and descr
+
+Step 3 : Key administrative permissions : Avinash_T
+
+Step 4 : Key usage permissions : Avinash_T
+
+Step 5 : Review policy and create key
+
+## S3 static website hosting:
+Static Website : S3 supports static website hosting
+
+Bucket Name = Domain Name
+
+--> NO need to run our server 24x7 for our static website
+--> Defualt, our website gets S3 performance
+
+3500 PUT Operations per Second		--> Upload
+5500 GET Operations per Second		--> Download/access/get
+
+--> We have to make our s3 bucket public
+--> It runs with http protocol 
+--> Integrate with cloudfront for https and Private buckets
+
+
+http status codes:
+
+2XX : ok/success
+3XX : Redirect
+4XX : Client Side error
+5XX : Server Side error

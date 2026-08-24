@@ -108,7 +108,6 @@ we will not get data transfer charges for read replica if it is in same region a
 1. Goto RDS -> databases -> select the DB created -> click on actions -> create read replica --> give the name for read replica --> select the instance type --> select the region where we want to create read replica --> in storage section select the storage type and size --> 
 in availability section select the single AZ(it's read replica we won't use Multi-AZ) --> in connectivity section select ipv4 disable public access, select the AZ select the existing SG(mysqlsg) --> enable password authentication --> in mointoring section if you want to monitor the read replica enable enhanced monitoring(otherwise disable it) --> click create read replica.
 
-**Note:** in free tier account we can't create read replica's.
 
 Note: if you promote the Read replica it will become a standalone DB and it will not be in sync with primary DB, so we can use it for writing the data also.(goto RDS -> databases -> select the read replica created -> click on actions -> click on Promote.)
 ![alt text](../.images/RR.png)
@@ -116,4 +115,78 @@ Note: if you promote the Read replica it will become a standalone DB and it will
 Note: we can't stop RDS DB permanently, we can only stop it for 7 days, after that it will automatically start. using event bridge and lambda we can stop the RDS DB for more than 7 days.(using lambda we will check the status of RDS DB if it is running we will stop it using event bridge we will create a cron job to run this lambda function every 7 days.)
 
 ## AWS Aurora:
-Amazon Aurora is built by aws by taking the MySQL and PostgreSQL open source DB as reference(like how redhat built redhat linux by taking linux as reference) it's has 5 times better performance than MySQL and 3 times better performance than PostgreSQL. it's serverless we will not manage server AWS will manage the server.
+Amazon Aurora is built by aws by taking the MySQL and PostgreSQL open source DB as reference(like how redhat built redhat linux by taking linux as reference) it's has 5 times better performance than MySQL and 3 times better performance than PostgreSQL. we have serverless option where we will not manage the server AWS will manage the server.
+
+if we select the Aurora mysql we have ACU(Aurora Capacity Unit)  instead of memory(in GB's) 1 ACU = 2 GB memory.
+
+Aurora: Up to 128 TB of autoscaling SSD storage
+
+Other DBs: Supports database size up to 64 TiB.
+
+**Note:** if we select the Multi-AZ option we will get the *Read replica write forwording* option if any request comes with write operation it will forward the request to primary DB and if any request comes with read operation it will forward the request to read replica.
+![alt text](../.images/RRF.png)
+
+Note: in Aurora we can create 15 read replica's if primary DB fails the read replica will be promoted as primary DB(while creating we have *failure priority*![![alt text](image-1.png)](image.png) option it has tier0-15 priority which has lowest priority will be promoted as primary DB(like tier-0 will be promoted as primary DB)).
+![alt text](../.images/FP.png)
+
+
+
+## parameter group in RDS:
+we can't edit the mysql.conf(default conf file for MySQL available in /etc/mysql/conf.d it contains DB server settings, performance settings etc.) file in RDS because we don't have access to the underlying OS(DBengine). so using parameter groups we can change the default settings of DB engine.(we can change the settings like max_connections, wait_timeout, innodb_buffer_pool_size etc. these are available in mysql.conf file)
+
+Note: while creating by deafult a parameter group automatically created but we can't edit the default parameter group, so we have to create a new parameter group and attach it to DB engine.
+
+1. goto RDS on left pane click on parameter groups -> create parameter group -> give name and description -> select the DB engine type(like Aurora Mysql)  and parameter family group(like aurora-mysql8.0) --> select the type(like DB parameter group or DB cluster parameter group you can know about this type while creating DB(in Addtional configuration section)) --> click create parameter group.
+![alt text](../.images/PG.png)
+
+## option group in RDS:
+using this we can add additional features to DB engine like connecting AWS services(S3 etc.) or auditing the mysql DB or security features like configuring TDE or kerberos authentication etc. we can add these features to DB engine using option group.
+
+## Backtrack option in Aurora:
+in Aurora we have backtrack option where we can go back in time and restore the DB to that point of time. we can go back upto 72 hours. we can enable this option while creating the Aurora DB engine.
+
+Note: if you want to upgrade the DB with zero downtime, for example, we want to upgrade the instance version of the writer DB, select the writer DB in actions, click on failover, it will promote the read replica as the writer DB and the writer DB will become the read replica, and we can upgrade the instance version of the read replica without any downtime then we will upgrade the instance version of the writer DB and failover again to make the writer DB as primary DB and read replica as secondary DB. we can do this for any maintenance activity like patching, upgrading etc.
+
+Note: if you give the cluster reader endpoint if any write operation we perform it will forwards the request to writer DB we can insert from reader DB(to get that select the clusetr under connectivity section you can see cluster reader and writer end points) of we select the reader DB instead of cluster you will get the Reader endpoint instead of reader cluster endpoint, so if we perform any write operation it will give error because reader DB is read only.
+![alt text](../.images/CRP.png)
+
+in the above image if we select the myaurora cluster we will get the cluster reader & writer endpoints, if we select the myaurora-instance-1-ap-south-1a we will get the reader endpoint instead of the cluster reader endpoint.
+
+## DynamoDB:
+DynamoDB is a NoSQL database service provided by AWS. It is designed for high performance, scalability, and cost-effectiveness.
+
+we have 2 types of data bases
+
+OLAP : Online Analytical Processing : Data will be semi/no organised.. : JSON : DynamoDB
+
+OLTP : Online Transactional processing : Data will be well organised.. : Table : RDS
+
+DynamoDB : Serverless : 
+
+**Single Digit million second latency at any scale of data.. 
+**Caching option/Solution for DynamoDB : DynamoDB AX/Accelerator
+
+
+Table : It holds Items.
+Item : A single row/record. it have its own attributes.
+Attributes : The column of that item. One item can have multiple attributes.
+PrimaryKey : With this only, DynamoDB finds our data. it has 2 types
+
+	1. Partition KeyOnly : Single Key
+
+	2. Composite Key : Partition key + Sort key
+
+Read/Write Capacity : (similar ACU in Aurora)
+--> Provisioned Mode : We can get a fixed number of requests.
+--> On-Demand Mode : For unpredictable worklopads.. Pay-as-you-go..
+
+### creating DynamoDB Table:
+1. Goto DynamoDB -> Tables -> Create table -> give the table name and primary key(Partition key and sort key(optional))  --> table settings click on customize settings --> in table class select standard(if you access data frequently) or DynamoDB standard IA(if you access data infrequently) --> in read/write capacity mode select provisioned in read and write capacity we have the autoscaling option if we enable it will automatically scale the read/write capacity based on the traffic if we disable we have to give the read/write capacity manually and then go with default values in warm through put, encryption and other sections --> click create table.
+![alt text](../.images/DDB.png)
+
+2. create items on left pane click on explore items --> select the table created --> click on create item --> give the values for attributes --> click save.
+![alt text](../.images/item.png)
+![alt text](../.images/item1.png)
+
+we have other option PartiQL editor where we can write SQL queries to perform operations on DynamoDB table. we can add items, update items, delete items, query items, scan items using queries in PartiQL editor.
+![alt text](../.images/PQL.png)
