@@ -750,7 +750,9 @@ By default, all data we upload to s3 is private. We need to make it public to sh
 3. Object level settings
 
 We have 2 ways to make data public
+
 --> ACL --> Disabled by defaultly, Enable it. (one time)
+
 --> Bucket policy
 
 ---
@@ -769,6 +771,7 @@ Data will be span across multiple AZs, Data replicates >=3 AZs(it stores in back
 
 
 S3 Standard - IA (Infrequently Access) / OneZone - IA : Infrequently accessed data (once a month) with milliseconds access
+
 OneZone - IA : Recreatable, infrequently accessed data (once a month) with milliseconds access
 **We can access data without any delays.
 Data will be span across multiple AZs, Data replicates >=3 AZs
@@ -778,7 +781,9 @@ S3 Glacier (Instant Retrival / Flexible retrival / Deep Archieve) :
 **We cannot access data immediatly.. 
 
 Glacier Instant Retrieval: Long-lived archive data accessed once a quarter with instant retrieval in milliseconds
+
 Glacier Flexible Retrieval (formerly Glacier) : Long-lived archive data accessed once a year with retrieval of minutes to hours
+
 Glacier Deep Archive : Long-lived archive data accessed less than once a year with retrieval of hours
 
 To access the data stored in glacier, We need to initialise the restoration.
@@ -823,7 +828,7 @@ it will cost per transistion.
  
 in the image at the end you can see for current version after 365 object will expire(we retrive that object for current version if we click on delete it will show delete option not permanently delete because we have versioning enabled) but for non-current version it will show permenately deleted.
 
-Note: life cycle rule follows top to bottom approach if we conver the standard to IA we can't convert it back to standard.
+Note: life cycle rule follows top to bottom approach if we convert the standard to IA we can't convert it back to standard.
 ![alt text](.images/S3LC.png)
 ### Replication rules:
 helps to replicate the data from one bucket to another bucket.(use this mostly for Disaster recovery purpose or report sharing purpose)
@@ -907,7 +912,7 @@ SSE-KMS - C (Customer Provided Key)..
 
 Symmetric Key : A single key will be used for encryption and decryption purposes. : ** S3
 
-Asymetric key : A public and krivate key pair used for encrypting and decrypting data. signing and verifying messages.
+Asymetric key : A public and Private key pair used for encrypting and decrypting data. signing and verifying messages.
 
 ### Creation of KMS customer managed key(CMK):
 1. goto KMS console --> click on customer managed keys on left pane --> click on create key --> select the key type symmetric(asymmetric key is not supported for s3) go with default options click next --> provide the key alias(name) and description --> click next --> in key administrative permissions section add the user who can manage the key --> click next --> in key usage permissions section add the user who can use the key for encryption and decryption if you want to use this key in other AWS accounts below add other aws account and provide account id --> click next --> add the policy statement if you want --> click next --> review the settings and click on create key.
