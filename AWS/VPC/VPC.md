@@ -383,14 +383,14 @@ Central NW Account = Place where TGW created..(generally we use the dedicated ac
 i don't have another aws account so i am adding aviz account screenshots for reference.
 ![alt text](../.images/RAM4.png)
 
-4. then create a transit gateway attachment in central networking account(where transit gateway is created) goto vpc console on left pane goto transit gateway setion click on transit gateway attachments click on create transit gateway attachment give name --> in transit gateway id section select the transit gateway we created in step-1 --> in attachement type select vpc --> in vpc section select the vpc we want to attach to transit gateway --> in subnet section select the subnets we want to attach to transit gateway --> click on create transit gateway attachment.
+4. then create a transit gateway attachment in central networking account(where transit gateway is created) goto vpc console on left pane goto transit gateway section click on transit gateway attachments click on create transit gateway attachment give name --> in transit gateway id section select the transit gateway we created in step-1 --> in attachement type select vpc --> in vpc section select the vpc we want to attach to transit gateway --> in subnet section select the subnets we want to attach to transit gateway --> click on create transit gateway attachment.
 ![alt text](../.images/TGW1.png)
 
 5. repeat the above step in other aws account also. goto CNW account(where transit gateway is created)
 goto transit gateway attachments you can see the new attachment request from other aws account select that attachment click on actions select accept attachment request.
 ![alt text](../.images/TGW2.png)
 
-6. add the route in other account vpc CIDR range in CNW account route table and in target select the transit gateway and then add the route of CNW account vpc CIDR range in other account route table and in target select the transit gateway.
+6. add the route to other account vpc CIDR range in CNW account route table and in target select the transit gateway and then add the route of CNW account vpc CIDR range in other account route table and in target select the transit gateway.
 ![alt text](../.images/TGW4.png)
 
 7. vpc in account-A want to communicate with vpc in account-C, in VPC-A route table add the route to VPC-C CIDR range and in target select the transit gateway(if VPC in A/C-A wants to communicate with A/C-B vpc i think we no need to add the route in A/C-B VPC-B route table) and i am not sure about this(in VPC-C route table add the route to VPC-A CIDR range and in target select the transit gateway. then we can able to communicate between VPC-A and VPC-C.)
@@ -412,7 +412,7 @@ Step 7 : Edit Central VPC account route table with "Member account"  VPC CIDR.
 ### creating Transit Gateway for same account different region VPC's communication:
 1. create the transit gateway in mumbai region and create transit gateway in sydney region.
 
-2. create a transit gateway attachment for VPC in mumbai region and create a transit gateway attachment for VPC in sydney region.(same like step-4 in TGW for cross account VPC's communication)
+2. create a transit gateway attachment for VPC in mumbai region and create a transit gateway attachment for VPC in sydney region.(same like step-4 in *TGW for cross account VPC's communication*)
 
 3. In mumbai region create a transit gateway peering attachment goto transit gateway attachements click on create transit gateway attachment give name --> in transit gateway id section select the transit gateway --> in attachment type select peering connection --> in peering connection attachment section select my account --> give the sydney region --> then give the sydney region transit gateway id --> click on create transit gateway attachment.
 ![alt text](../.images/TGW6.png)
