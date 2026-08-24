@@ -1079,24 +1079,58 @@ RAG (Retrieval Augmented Generation)
 
 ---
 
-S3 Consistency Model: Amazon S3 currently uses a strong "read-after-write" consistency model for all operations
+## S3 Consistency Model: 
+Amazon S3 currently uses a strong "read-after-write" consistency model for all operations
 
 ---
 
-MultiPart Upload : Deviding a large file into multiple parts and uploading small chunks and combining the file once all chunks/parts uploaded.
+## MultiPart Upload : 
+Dividing a large file into multiple parts and uploading small chunks and combining the file once all chunks/parts uploaded.
 
 aws s3 cp largefile.mp4 s3://bucket-name/ --part-size 10MB
 
-Presign url : temp url that expires automatically after given ttl value.
-
-
-==================
-
-Cloudfront : 
-
-defautl ttl value : 86400 seconds
-
+## Presign url : temp url that expires automatically after given ttl value.
 
 aws s3 presign s3://bucket/objectname --expires-in 60
+==================
 
+## AWS Cloudfront : 
+Amazon CloudFront is a fast, secure content delivery network (CDN) service built by Amazon Web Services. It speeds up the delivery of static files, dynamic web apps, APIs, and videos to users. It uses a global network of data centers called edge locations to serve data with low delay.
 
+Note: first customer request always take igh latency because it will fetch the data from origin server and store in edge location for future requests.
+
+CloudFront by default uses lazy loading mechanism.
+
+cloudfront is global service we can use it in any region but the edge locations are available in specific regions. if we want to map ACM certificate to cloudfront distribution we need to create the ACM certificate in N.Virginia region only(because cloud front is a global service).
+
+defautl ttl value : 86400 seconds(24 hours) we can change this value in cache behavior settings of cloudfront distribution.
+
+## Creating CloudFront distribution:
+1. Goto cloudfront console --> click on create distribution --> give name and description --> select single website app in Distribution type section --> add the origin domain name(pruthvilearnaws.shop) click next --> select the origin type as S3 and browse the bucket name --> in settings section *Allow private S3 bucket access to CloudFront* is by default allowed if we disable it we need to make the bucket public to access the data from cloudfront distribution  and have other options explore click next --> in enable section if you want you can enable web application firewall and but i am going with *Do not enable security protections* click next --> in this section click on create it will create a certificate in ACM in northern virginia region and select it(if you have already created the certificate in ACM you can select that certificate) --> review the settings and click on create distribution.
+
+![alt text](.images/CF.png)
+![alt text](.images/CF2.png)
+![alt text](.images/CF3.png)
+![alt text](.images/CF4.png)
+![alt text](.images/CF5.png)
+
+2. create a A record in Route53 and map the cloudfront distribution.
+![alt text](.images/CF6.png)
+
+3. we didn't gave default root object(we we hit the domain name it will display the object we gave in default root object field) in cloudfront distribution settings. click on edit and give the default root object name and click on save changes.
+![alt text](.images/CF7.png)
+
+if want to access the other files give /objectname in the url like "https://pruthvilearnaws.shop/objectname" to access the other files in the that bucket.
+
+## CloudFront invalidations option: 
+An invalidation in Amazon CloudFront is a command that forces CloudFront to delete its cached copies of your files. for example, if you update a file in your S3 bucket and want CloudFront to serve the updated version, you can create an invalidation request for that file. This will remove the cached version from all edge locations, ensuring that users receive the latest version of the file. or after deleting the object from s3 bucket some users sill accessing the file using caching using invalidations we can remove that cached copy from edge locations.
+
+1. goto cloudfront console --> select the distribution --> click on invalidations tab --> click on create invalidation --> give the object name(/objectname) or give /* to remove all cached copies from edge locations --> click on create invalidation.
+![alt text](.images/invalidations.png)
+
+## CloudFront geographic restrictions:
+we can block the access to our application from specific regions(like china, russia etc.) using cloudfront geo restriction feature. we can allow or block the access to our application from specific regions.
+1. goto cloudfront console --> select the distribution --> click on security tab --> click on edit on CloudFront geographic restrictions section --> select the restriction type(allow/block/norestriction) --> select the countries from the list --> click on save changes.  
+![alt text](.images/georestriction.png)
+
+you will get 403 error if you try to access the application from blocked region.
