@@ -966,3 +966,137 @@ http status codes:
 3XX : Redirect
 4XX : Client Side error
 5XX : Server Side error
+
+## S3 bucket policy:
+I have an IAM user, who has "S3 Full Access".. but one bucket host some sensitive infromation that need to protect from Delete and upload from a specific/set of user..
+
+1. Bucket ARN (Amazon Resource Name) : arn:aws:s3:::avinash-awar07-s3-demo
+2. Principal : user / group : 
+3. Effect : allow / deny
+4. Actions to take effect : PutObject, GetObject, ListObject
+
+Bucket level operation : arn:aws:s3:::avinash-awar07-s3-demo(using this we can s3:ListBucket, s3:GetBucketLocation etc. but we can't put/get object)
+Object level operation : arn:aws:s3:::avinash-awar07-s3-demo/*(using for object level actions s3:GetObject, s3:PutObject, s3:DeleteObject we can't list buckets using this)
+
+
+1. arn:aws:s3:::avinash-awar07-s3-demo,arn:aws:s3:::avinash-awar07-s3-demo/*
+2. arn:aws:iam::655700896650:user/encry-test
+3. deny
+4. DeleteObject and PutObject
+
+
+1. Bucket ARN (Amazon Resource Name) : arn:aws:s3:::avinash-awar07-s3-demo/*
+2. Principal : user / group : *
+3. Effect : allow
+4. Actions to take effect : GetObject
+
+Note: if we use Deny option on *GetBucketPolicy* and *DeleteBucketPolicy* actions in bucket policy even if a user has S3 full access he can't view policy from console; if he sees the policy from CLI he can't delete the policy from CLI as well.
+
+## S3 transfer acceleration:
+Upload data quickly to S3 bucket via transfer acceleration feature.
+
+S3 Transfer Acceleration enables fast, easy, and secure transfers of files over long distances between your client and an S3 bucket. Transfer Acceleration takes advantage of Amazon CloudFront’s globally distributed edge locations. As the data arrives at an edge location, data is routed to Amazon S3 over an optimized network path.
+
+we can enable this option in s3 properties tab --> scroll down to transfer acceleration section --> click on edit --> select enable --> click save changes.
+
+Note: if we have "."(period) in s3 bucket name we can't use transfer acceleration feature for that bucket. we need to create new bucket without "." in the name.
+![alt text](.images/s3taccelerate.png)
+
+Default S3 bucket performance:
+
+3500 PUT Operations per Second per prefix(folder in s3 bucket)	--> Upload
+5500 GET Operations per Second per prefix(folder in s3 bucket)	--> Download/access/get
+
+Use prefixes to get more performance
+Add some randomness(storing prod related things in prod specifically naming like eks data, instance data etc. ) to the object names (Improves the search mechanism)
+
+## s3 Server access logging: 
+used to store the logs of S3 bucket(like which object created, deleted, accessed etc.) we will store the logs in another bucket. we can enable this option in properties tab of s3 bucket --> scroll down to server access logging section --> click on edit --> select enable --> select the target bucket where we want to store the logs and give the prefix name --> click save changes.(mostly we willnot use this because we will use cloudtrail to track the s3 bucket activities)
+
+---
+
+## AWS Object Lock : 
+We can enforce delete standards on S3 bucket. 
+
+Note: we can delete the objects those are created before enabling the object lock. we can't delete the objects those are created after enabling the object lock. 
+
+Governance Mode : We can disable the object lock and delete it.
+Compliance Mode : No one can delete the data (including root user).
+
+### creation of object lock:
+select the bucket --> click on properties tab --> scroll down to object lock section --> click on edit --> select enable object lock and select the mode(governance/compliance) give the duration(7 days or 1 year) --> click save changes.
+![alt text](.images/objectlock.png)
+
+## s3 Cross origin resource sharing(CORS):
+
+youtube video link: https://youtu.be/YrfDLrSVxQ8?si=wocnwpTLvsWWJ2Co
+
+S3 Cross-Origin Resource Sharing (CORS) allows you to specify which origins are permitted to access your S3 bucket. This is useful when you want to allow web applications hosted on different domains to interact with your S3 bucket.
+
+To enable CORS on an S3 bucket:
+1. Select the bucket --> click on the "Permissions" tab --> scroll down to the "Cross-origin resource sharing (CORS)" section --> click on "Edit".
+2. Add a CORS configuration in JSON format. For example:
+```json
+[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["GET", "POST"],
+    "AllowedOrigins": ["https://example.com"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
+3. Click "Save changes".
+
+## S3 Directory buckets:
+Built for high-speed, single-digit millisecond performance. Optimized for specialized workloads using the S3 Express One Zone class. Recommended for low-latency use cases. These buckets use only the S3 Express One Zone storage class, which provides faster processing of data within a single Availability Zone.
+
+--> Data is stored in a single Availability Zone. It uses S3 Express One Zone storage class.
+--> For every bucket name we get a zone prefix "--aps1-az1--x-s3"
+--> Support very high request rate.
+--> Relatime data processing (low HA/FT)
+
+## s3 Table buckets : 
+Buckets designed specifically for analytics purposes.
+Supports data formats i.e; parquet, apache iceberg.
+
+--> Buildin table management
+--> We can integrate these buckets wityh Analytics engines. (Athena, EMR, Spark, Redshift)
+--> It supports ACID table operations
+
+A - Atomicity : A transaction executes completely or not at all. 
+C - Consistency : Transaction moves the system from one valid state to another valid state.
+I - Isolation : Multiple transactions run concurrently. 
+D - Durability : Once a transaction is committed, the changes are permanent, even if the system fails.
+
+---
+
+## s3 Vector Buckets : 
+buckets are designed to store and query vector embeddings used by AI applications.
+
+RAG (Retrieval Augmented Generation)
+
+---
+
+S3 Consistency Model: Amazon S3 currently uses a strong "read-after-write" consistency model for all operations
+
+---
+
+MultiPart Upload : Deviding a large file into multiple parts and uploading small chunks and combining the file once all chunks/parts uploaded.
+
+aws s3 cp largefile.mp4 s3://bucket-name/ --part-size 10MB
+
+Presign url : temp url that expires automatically after given ttl value.
+
+
+==================
+
+Cloudfront : 
+
+defautl ttl value : 86400 seconds
+
+
+aws s3 presign s3://bucket/objectname --expires-in 60
+
+
