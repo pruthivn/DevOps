@@ -1,5 +1,6 @@
 # TCS interview Questions
 
+
 ### 1. What is the difference between ALB & NLB?
 A. **Application Load Balancer:**An Application Load Balancer (ALB) operates at Layer 7 (HTTP/HTTPS) and routes traffic based on application content such as Path-based, and also routes host-based, query string parameters(in ALB rule condition if we provide v2 it will route traffic to v2 or if it's ). it is slow(due to layer inspection).
 it uses Dynamic IP(use DNS name) and don't use static IP.
@@ -66,6 +67,18 @@ A. it's difficult manaually login to every new instnace and mount EFS. so we use
 
 ### 9. When you create a new vpc, what are the components you get defualtly?
 A. RouteTable, NACL, DefaultSecurityGroup
+
+### 10. A user(iam user)is not able to access the objects in the s3 bucket has s3 full access policy, bucket has no policies attached, no permissions boundary set for tha user but still user is not able to access the bucket what could be the reason?
+A. issue might be with kms key policy if the bucket is encrypted with kms key. if the user doesn't have kms key permissions then user can't access the objects in the bucket. goto kms key policy and add the user arn to the key policy(or add the user in key users section in key policy tab).
+
+the question might be with different way also first trouble shoot like below:
+1. check the bucket policy and make sure there is no explicit deny for that user.
+2. check the bucket ACL and make sure the user is not denied access.
+3. check the IAM policy attached to the user and make sure it allows access to the bucket and there is no deny statement.
+4. check the permissions boundary for the user and make sure it allows access to the bucket.
+5. check the KMS key policy if the bucket is encrypted with a KMS key and make sure the user has access to the key.
+
+Note: ask the interviewer what kind of error he is encountering we can easily troubleshoot using the error.
 
 
 
