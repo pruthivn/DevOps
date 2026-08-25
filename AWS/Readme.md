@@ -1134,3 +1134,4 @@ we can block the access to our application from specific regions(like china, rus
 ![alt text](.images/georestriction.png)
 
 you will get 403 error if you try to access the application from blocked region.
+
