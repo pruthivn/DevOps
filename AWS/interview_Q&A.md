@@ -80,6 +80,12 @@ the question might be with different way also first trouble shoot like below:
 
 Note: ask the interviewer what kind of error he is encountering we can easily troubleshoot using the error.
 
+11. your AWS account is compromised how will you recover it?
+A. Disable credentials, Reset the password, Enable MFA..!!
+--> Did he created any other user.? i will check using cloud trail.
+--> What are all the other activities this guy performed.?
+--> Block network Traffic at NACLs. (VPC FlowLogs, Login--> Cloudtrail)
+--> Incident investigation.
 
 
 ## Infosys interview questions

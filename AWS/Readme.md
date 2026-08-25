@@ -1083,7 +1083,8 @@ MultiPart Upload : Deviding a large file into multiple parts and uploading small
 aws s3 cp largefile.mp4 s3://bucket-name/ --part-size 10MB
 
 Presign url : temp url that expires automatically after given ttl value.
-
+![alt text](.images/presignedurl.png)
+ cli: aws s3 presign s3://bucket/objectname --expires-in 60
 
 ==================
 
@@ -1094,4 +1095,63 @@ defautl ttl value : 86400 seconds
 
 aws s3 presign s3://bucket/objectname --expires-in 60
 
+## AWS Cloudtrail:
+Continuously log your AWS account activity.
+
+--> Enabled by defaut. It stores only last 90 days logs. 
+--> We can send logs to S3 bucket / Cloudwatch and we can setup lifecycle rule / retention period.
+--> We can filter logs based on multiple options (username, Accesskey, EventName, event source)
+
+1. It cannot track whats happening inside the resource we have launched 
+(ec2 instance os operation, S3 Object level operations (default), Table level operations)
+
+
+4 Types of trails available:
+
+1. Management trail : Capture management operations performed on your AWS resources.(it's free)
+2. Data trail : S3, lambda, dynamodb
+3. Insight events : abnormal traffic : Identify unusual activity, errors, or user behavior in your account.
+4. Network trail: is used to track the network traffic for a particular resource.
+
+--> Organisations: We can manage Multiple accounts in a single roof. We can have a dedicated AWS account for logging purposes. 
+
+we created a trail in eventbridge sesssion check the trail creation guide in eventbridge section in this file.
+
+## Trusted Advisor :
+Provided suggestions on best practices we have to follow on below categories.
+
+--> If we are in basic support plan, we get only some suggestions.
+
+Cost optimization : 
+Performance : 
+Security : 
+Fault tolerance : 
+Service limits : 
+Operational excellence : 
+
+![alt text](.images/TA.png)
+
+
+--> We inspect all the finding every quarterly.
+
+## AWS Config:
+AWS Config is a monitoring service that tracks and records all the changes made to your AWS cloud resources. we will create some rules like if any resource is created without tags security group with open to world etc. it will send the notification to us. we can also check the history of the resource changes. It helps you manage compliance, troubleshoot issues, and audit security settings automatically.
+
+common complaince standards followed by companies: 
+PCS DSS (payment Card Industry Data Security Stanard)
+
+HIPAA (health insurance Portability and Accountability Act)
+
+SOC2 : Service Organisation Control 2
+
+CIS : Center for Internet Security
+
+GDPR: general Data protection Regulation(european regulation)
+
+ISO 27001
+
+### Creating AWS Config:
+goto AWS config console --> click on get started --> select the resource types we want to track(any particular resource or all resources) --> in override settings section we can exclude any resources from tracking ---> in AWS config role section we can create a new role or use existing role --> we can store logs in S3 bucket(we can create new bucket or use existing bucket in same account or other account) if you want to sns topic alerts enable it click on next --> in rules section we can select the rules(like if any resource created without tags or S3 bucket public access etc.) --> click next --> review the settings and click on confirm.
+![alt text](.images/config.png)
+![alt text](.images/config2.png)
 
