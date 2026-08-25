@@ -1196,3 +1196,16 @@ goto AWS config console --> click on get started --> select the resource types w
 ![alt text](.images/config.png)
 ![alt text](.images/config2.png)
 
+## AWS Shield :
+Managed DDoS protection service : 
+--> AWS Shield Standard: Enabled by default.
+
+AWS Shield Advanced : $3000 / month
+
+--> ASG + ELB 
+--> Cloudfront (Has inbuild capability to handle DDoS Attacks)
+--> Shield Advanced
+
+---
+
+AWS WAF : Web Application Firewall : Traffic filter before it reaches our appliocation delivering via ALB, API Gateway...
