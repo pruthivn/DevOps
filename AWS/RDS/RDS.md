@@ -190,3 +190,43 @@ Read/Write Capacity : (similar ACU in Aurora)
 
 we have other option PartiQL editor where we can write SQL queries to perform operations on DynamoDB table. we can add items, update items, delete items, query items, scan items using queries in PartiQL editor.
 ![alt text](../.images/PQL.png)
+
+## Elasticache:
+Elasticache is a fully managed in-memory data store and cache service provided by AWS(mostly used for RDS). It supports two open-source in-memory caching engines: valkey(fork from redis) and Memcached. It is designed to improve the performance of web applications by allowing you to retrieve information from fast, managed, in-memory caches, instead of relying entirely on slower disk-based databases.
+
+AWS developed the valkey because redis is not open source anymore, so AWS developed the valkey which is a fork of redis and it is open source. valkey is fully compatible with redis, so we can use the same commands in valkey as we use in redis.
+
+### creating valkey Elasticcache: 
+1. create a security group for valkey cache open port 6379 for valkey cache and route the traffic to VPC CIDR(192.168.100.0/24)
+![alt text](../.images/valkeysg.png)
+
+2. goto elasticache console on leftpane click on valkey cache --> click on create on configuration tab select valkey engine type(also have memcached and Redis OSS) and go with other default options --> in settings give name and description and select the engine version --> click on customize settings --> in network section select the myapp VPC and select the DB subnet group created in VPC learning session --> in security section  in access control section if you want we can enable access control for valkey cache, click on customize security in selected security group section click on manage select the SG we created for valkey cache --> if required enable backup and also we can set usage limits as well --> click create.
+![alt text](../.images/valkey.png)
+
+copy the endpoint of valkey cache: testingvalkeycache-ec9or7.serverless.aps1.cache.amazonaws.com:6379
+
+start the jumpserver and execute the below commands
+
+```sh
+sudo yum install -y python3-pip mariadb105 redis6
+pip3 install flask pymysql redis
+
+export DB_HOST="database-1.chyaigmg00ss.ap-south-1.rds.amazonaws.com"
+export DB_PORT="3306"
+export DB_USER="admin"
+export DB_PASSWORD="Pruthvi123"
+export DB_NAME="productdb"
+export REDIS_HOST="testingvalkeycache-ec9or7.serverless.aps1.cache.amazonaws.com:6379"
+export REDIS_PORT="6379"
+export CACHE_TTL="60"
+
+cachetest-qoikij.serverless.aps1.cache.amazonaws.com
+
+create schema.sql
+
+mysql -h $DB_HOST -u $DB_USER -p"$DB_PASSWORD" < schema.sql
+
+python3 app.py
+```
+
+

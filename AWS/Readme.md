@@ -1089,49 +1089,76 @@ Dividing a large file into multiple parts and uploading small chunks and combini
 
 aws s3 cp largefile.mp4 s3://bucket-name/ --part-size 10MB
 
-## Presign url : temp url that expires automatically after given ttl value.
+Presign url : temp url that expires automatically after given ttl value.
+![alt text](.images/presignedurl.png)
+ cli: aws s3 presign s3://bucket/objectname --expires-in 60
 
-aws s3 presign s3://bucket/objectname --expires-in 60
 ==================
 
-## AWS Cloudfront : 
-Amazon CloudFront is a fast, secure content delivery network (CDN) service built by Amazon Web Services. It speeds up the delivery of static files, dynamic web apps, APIs, and videos to users. It uses a global network of data centers called edge locations to serve data with low delay.
+Cloudfront : 
 
-Note: first customer request always take igh latency because it will fetch the data from origin server and store in edge location for future requests.
+defautl ttl value : 86400 seconds
 
-CloudFront by default uses lazy loading mechanism.
 
-cloudfront is global service we can use it in any region but the edge locations are available in specific regions. if we want to map ACM certificate to cloudfront distribution we need to create the ACM certificate in N.Virginia region only(because cloud front is a global service).
+aws s3 presign s3://bucket/objectname --expires-in 60
 
-defautl ttl value : 86400 seconds(24 hours) we can change this value in cache behavior settings of cloudfront distribution.
+## AWS Cloudtrail:
+Continuously log your AWS account activity.
 
-## Creating CloudFront distribution:
-1. Goto cloudfront console --> click on create distribution --> give name and description --> select single website app in Distribution type section --> add the origin domain name(pruthvilearnaws.shop) click next --> select the origin type as S3 and browse the bucket name --> in settings section *Allow private S3 bucket access to CloudFront* is by default allowed if we disable it we need to make the bucket public to access the data from cloudfront distribution  and have other options explore click next --> in enable section if you want you can enable web application firewall and but i am going with *Do not enable security protections* click next --> in this section click on create it will create a certificate in ACM in northern virginia region and select it(if you have already created the certificate in ACM you can select that certificate) --> review the settings and click on create distribution.
+--> Enabled by defaut. It stores only last 90 days logs. 
+--> We can send logs to S3 bucket / Cloudwatch and we can setup lifecycle rule / retention period.
+--> We can filter logs based on multiple options (username, Accesskey, EventName, event source)
 
-![alt text](.images/CF.png)
-![alt text](.images/CF2.png)
-![alt text](.images/CF3.png)
-![alt text](.images/CF4.png)
-![alt text](.images/CF5.png)
+1. It cannot track whats happening inside the resource we have launched 
+(ec2 instance os operation, S3 Object level operations (default), Table level operations)
 
-2. create a A record in Route53 and map the cloudfront distribution.
-![alt text](.images/CF6.png)
 
-3. we didn't gave default root object(we we hit the domain name it will display the object we gave in default root object field) in cloudfront distribution settings. click on edit and give the default root object name and click on save changes.
-![alt text](.images/CF7.png)
+4 Types of trails available:
 
-if want to access the other files give /objectname in the url like "https://pruthvilearnaws.shop/objectname" to access the other files in the that bucket.
+1. Management trail : Capture management operations performed on your AWS resources.(it's free)
+2. Data trail : S3, lambda, dynamodb
+3. Insight events : abnormal traffic : Identify unusual activity, errors, or user behavior in your account.
+4. Network trail: is used to track the network traffic for a particular resource.
 
-## CloudFront invalidations option: 
-An invalidation in Amazon CloudFront is a command that forces CloudFront to delete its cached copies of your files. for example, if you update a file in your S3 bucket and want CloudFront to serve the updated version, you can create an invalidation request for that file. This will remove the cached version from all edge locations, ensuring that users receive the latest version of the file. or after deleting the object from s3 bucket some users sill accessing the file using caching using invalidations we can remove that cached copy from edge locations.
+--> Organisations: We can manage Multiple accounts in a single roof. We can have a dedicated AWS account for logging purposes. 
 
-1. goto cloudfront console --> select the distribution --> click on invalidations tab --> click on create invalidation --> give the object name(/objectname) or give /* to remove all cached copies from edge locations --> click on create invalidation.
-![alt text](.images/invalidations.png)
+we created a trail in eventbridge sesssion check the trail creation guide in eventbridge section in this file.
 
-## CloudFront geographic restrictions:
-we can block the access to our application from specific regions(like china, russia etc.) using cloudfront geo restriction feature. we can allow or block the access to our application from specific regions.
-1. goto cloudfront console --> select the distribution --> click on security tab --> click on edit on CloudFront geographic restrictions section --> select the restriction type(allow/block/norestriction) --> select the countries from the list --> click on save changes.  
-![alt text](.images/georestriction.png)
+## Trusted Advisor :
+Provided suggestions on best practices we have to follow on below categories.
 
-you will get 403 error if you try to access the application from blocked region.
+--> If we are in basic support plan, we get only some suggestions.
+
+Cost optimization : 
+Performance : 
+Security : 
+Fault tolerance : 
+Service limits : 
+Operational excellence : 
+
+![alt text](.images/TA.png)
+
+
+--> We inspect all the finding every quarterly.
+
+## AWS Config:
+AWS Config is a monitoring service that tracks and records all the changes made to your AWS cloud resources. we will create some rules like if any resource is created without tags security group with open to world etc. it will send the notification to us. we can also check the history of the resource changes. It helps you manage compliance, troubleshoot issues, and audit security settings automatically.
+
+common complaince standards followed by companies: 
+PCS DSS (payment Card Industry Data Security Stanard)
+
+HIPAA (health insurance Portability and Accountability Act)
+
+SOC2 : Service Organisation Control 2
+
+CIS : Center for Internet Security
+
+GDPR: general Data protection Regulation(european regulation)
+
+ISO 27001
+
+### Creating AWS Config:
+goto AWS config console --> click on get started --> select the resource types we want to track(any particular resource or all resources) --> in override settings section we can exclude any resources from tracking ---> in AWS config role section we can create a new role or use existing role --> we can store logs in S3 bucket(we can create new bucket or use existing bucket in same account or other account) if you want to sns topic alerts enable it click on next --> in rules section we can select the rules(like if any resource created without tags or S3 bucket public access etc.) --> click next --> review the settings and click on confirm.
+![alt text](.images/config.png)
+![alt text](.images/config2.png)
 
