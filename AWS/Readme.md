@@ -1208,4 +1208,78 @@ AWS Shield Advanced : $3000 / month
 
 ---
 
-AWS WAF : Web Application Firewall : Traffic filter before it reaches our appliocation delivering via ALB, API Gateway...
+## AWS WAF(Web Application Firewall) : 
+Traffic filter before it reaches our appliocation delivering via ALB, API Gateway...
+
+not available in free account
+
+## AWS Redshift : 
+
+Data warehouse : 
+
+OLTP : RDS : Customer --> order
+OLAP : Redshift 
+
+--> Redshift uses Columnar Storage		(Regular database: row-by-row)
+--> MPP : Massively Parallel processing (Data stores across the nodes)
+--> Default Data Compression : 
+
+Leader Node : The "manager". It receives the SQL query, create an execution plan, and distributes wqorkto the computer nodes. It doesn't store user data. 
+Compute Node : The "Worker". It received instructions from leader node and executes the query in parallel on theit portion of the data and send result back to the leader node. 
+
+RA3 : RMS Redshift managed storage.. 
+
+
+WLM : Auto-WLM : We can define queues with priorities.
+MVs : Materialised Views : Pre-compute and store the results of complex queries. 
+
+==========
+## AWS DMS(Database Migration Service) :
+1. Homogeneous Migration : 
+migrating same to Same DB engines like mysql to mysql, postgresql to postgresql etc is called Homogeneous Migration. we can use DMS to migrate the data from on-prem or existing AWS RDS DB engine to AWS RDS DB engine.
+
+On-Prem / AWS Existing DB Engine (mysql) --> AWS RDS DB Engine (mysql)
+
+mysql --> DMS --> mysql
+
+
+2. Heterogenious Migration : 
+Migrating different DB engines like mysql to postgresql, postgresql to mysql etc is called Heterogeneous Migration. we can use DMS + SCT to migrate the data from on-prem or existing AWS RDS DB engine to AWS RDS DB engine.
+On-Prem / AWS Existing DB Engine (mysql/Mongo/Redshift) --> AWS RDS DB Engine (mysql/postgresql)
+
+postgresql --> DMS + SCT --> mysql
+
+## Creating DMS Migration :
+1. create a DMS cludter goto DMS console on leftpane click on migrate or replicate then click on provisioned instances --> click on create replication instance --> give the name and description --> select the instance class and storage type and size and also select the single AZ or multi AZ --> in connectivity section select the VPC enable public access if required in advanced settings section select AZ's, Security group, KMS key if you want to encrypt the data --> you want to maintenance window select the day, time and duration go with default options --> click create replication instance
+![alt text](.images/DMS.png)
+
+2. Create Source Endpoint : goto DMS console on leftpane click on endpoints under migrate or replicate section --> click on create endpoint --> select the endpoint type as source --> give the name and description --> if your database in RDS select the RDS instance and database name --> in endpoint configuration settings select the DB engine(source) select the access method to endpoint(source DB) we have different methods secret manager, manual, IAM Authentication if you want turn on SSL certificate go with default settings --> click create endpoint
+![alt text](.images/DMS2.png)
+
+3. in same way create Target endpoint. if it is mysql select mysql engine if not select the required engine and give the target DB details.
+
+4. we test the connectivity between endpoints & DMS cluster before creating the migration task. select the endpoint --> click on test connection select the replication instance and click on run test. if it shows success we can proceed to create migration task.
+![alt text](.images/test.png)
+
+5. then create task  goto DMS console on leftpane click on tasks under migrate or replicate section --> click on create task --> give the name and description --> select the source and target endpoints --> choose the task mode(provisioned or serverless) --> select the replication instance --> in Task type(migration strategy) section we have 3 options Migrate only, Migrate and replicate, Replicate only --> in table mappings section we can select the tables we want to migrate --> in Log settings section we can turn on cloud watch logs --> explore the other features click create task.
+![alt text](.images/DMS3.png)
+
+Step 1 : Create a DMS CLuster
+Step 2 : Create a Source Endpoint
+Step 3 : Create a Target Endpoint
+
+Step 4 : Configure the migration task
+![alt text](.images/DMS1.png)
+
+
+Migrate only: Migrate data from source to target once (Full load)
+
+Migrate and replicate : Migrate data from source to target once and continue to replicate changes (Full load and CDC)
+
+Replicate only : Replicate data from source to target now or at a specified milestone (CDC only)
+
+CDC --> means Change Data Capture
+
+
+
+
