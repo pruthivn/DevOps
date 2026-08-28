@@ -47,6 +47,7 @@ Note:
 7. after that using the public ip you can test the application(like we normall use httpd service to test the app using public  ip and httpd protocol) it it's successful then click on mark as ready for cutover then click on launch cutover it will launch the production instance in Nvirginia(us-east-1) and you can use the public ip to test the application.
 ![alt text](../.images/mgn10.png)
 
+8. after testing succesfully click on finalize cutover it will remove intermediate resources.
 
 Migration Lifecycle States:
 
