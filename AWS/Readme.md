@@ -1213,73 +1213,103 @@ Traffic filter before it reaches our appliocation delivering via ALB, API Gatewa
 
 not available in free account
 
-## AWS Redshift : 
+## AWS Organizations:
+Note: DON'T ENABLE ORGANISATIONS IN YOUR FREE ACCOUNT. yo will cost all your free credits.
+AWS Organizations is a service that allows you to manage multiple AWS accounts centrally. It provides features like consolidated billing, centralized management of policies, and the ability to create organizational units (OUs) for better account management.
 
-Data warehouse : 
+different types of accounts in Enterprises:
 
-OLTP : RDS : Customer --> order
-OLAP : Redshift 
+sandbox/training	- POC
+Dev					- Dev
+SQA					- testing
+UAT					- Pre-prod
+Prod				- Prod / live
+Central Networking	- Endpoints/Transit Gateway
+Central logging		- Central logs in s3 bucket
+Management account	- Where AWS Organisation service enabled
 
---> Redshift uses Columnar Storage		(Regular database: row-by-row)
---> MPP : Massively Parallel processing (Data stores across the nodes)
---> Default Data Compression : 
+Central billing access
 
-Leader Node : The "manager". It receives the SQL query, create an execution plan, and distributes wqorkto the computer nodes. It doesn't store user data. 
-Compute Node : The "Worker". It received instructions from leader node and executes the query in parallel on theit portion of the data and send result back to the leader node. 
+Central permissions management using Policies (SCP / Tag Policies)
 
-RA3 : RMS Redshift managed storage.. 
-
-
-WLM : Auto-WLM : We can define queues with priorities.
-MVs : Materialised Views : Pre-compute and store the results of complex queries. 
-
-==========
-## AWS DMS(Database Migration Service) :
-1. Homogeneous Migration : 
-migrating same to Same DB engines like mysql to mysql, postgresql to postgresql etc is called Homogeneous Migration. we can use DMS to migrate the data from on-prem or existing AWS RDS DB engine to AWS RDS DB engine.
-
-On-Prem / AWS Existing DB Engine (mysql) --> AWS RDS DB Engine (mysql)
-
-mysql --> DMS --> mysql
+SCP : Service control policies
 
 
-2. Heterogenious Migration : 
-Migrating different DB engines like mysql to postgresql, postgresql to mysql etc is called Heterogeneous Migration. we can use DMS + SCT to migrate the data from on-prem or existing AWS RDS DB engine to AWS RDS DB engine.
-On-Prem / AWS Existing DB Engine (mysql/Mongo/Redshift) --> AWS RDS DB Engine (mysql/postgresql)
+in enterprise we don't use email but for account creation we need to use email so there is dedicated teams is available in enterprises to manage emails and they will create a *DL(Distribution list)* in that list all our team members(slack or outlook mails) will be added and they will forward all those mails to DL. who every in shift will check the DL and take action on that mail.
 
-postgresql --> DMS + SCT --> mysql
+https://aviz.awsapps.com/start
 
-## Creating DMS Migration :
-1. create a DMS cludter goto DMS console on leftpane click on migrate or replicate then click on provisioned instances --> click on create replication instance --> give the name and description --> select the instance class and storage type and size and also select the single AZ or multi AZ --> in connectivity section select the VPC enable public access if required in advanced settings section select AZ's, Security group, KMS key if you want to encrypt the data --> you want to maintenance window select the day, time and duration go with default options --> click create replication instance
-![alt text](.images/DMS.png)
+1. goto AWS Organizations console you will see the Create an organization button(if you are visiting first time for AWS Organizations in that account) click on that.
 
-2. Create Source Endpoint : goto DMS console on leftpane click on endpoints under migrate or replicate section --> click on create endpoint --> select the endpoint type as source --> give the name and description --> if your database in RDS select the RDS instance and database name --> in endpoint configuration settings select the DB engine(source) select the access method to endpoint(source DB) we have different methods secret manager, manual, IAM Authentication if you want turn on SSL certificate go with default settings --> click create endpoint
-![alt text](.images/DMS2.png)
+2. after that you will see the organization dashboard like below root account is the management account(same account where we enabled the AWS Organizations service)
+![alt text](.images/org.png)
 
-3. in same way create Target endpoint. if it is mysql select mysql engine if not select the required engine and give the target DB details.
+### adding  AWS accounts to organization:
+1. goto AWS Organizations console --> on leftpane clickon AWS accounts --> click on add an AWS account --> have 2 options 1. create an AWS account(it won't ask credit card or other details it will pick those details form the management account(root account)) 2. invite an existing AWS account choose the option you want --> if you choose create an AWS account give the account name and email address and  and iam role created click on create account --> if you choose invite an existing AWS account give the email address or account id of that account and click on send invitation. (the invited account owner will get the invitation mail to join the organization, once he accepts the invitation he will be added to your organization)
+![alt text](.images/org2.png)
+![alt text](.images/org3.png)
 
-4. we test the connectivity between endpoints & DMS cluster before creating the migration task. select the endpoint --> click on test connection select the replication instance and click on run test. if it shows success we can proceed to create migration task.
-![alt text](.images/test.png)
+3. then we will create OUs(Organizational Units) to manage the accounts in better way --> goto organization console select the root(see the image)--> click on actions --> click on Create new give name --> click on create organizational unit. we can create multiple OUs and move the accounts to respective OUs.
+![alt text](.images/ou.png)
 
-5. then create task  goto DMS console on leftpane click on tasks under migrate or replicate section --> click on create task --> give the name and description --> select the source and target endpoints --> choose the task mode(provisioned or serverless) --> select the replication instance --> in Task type(migration strategy) section we have 3 options Migrate only, Migrate and replicate, Replicate only --> in table mappings section we can select the tables we want to migrate --> in Log settings section we can turn on cloud watch logs --> explore the other features click create task.
-![alt text](.images/DMS3.png)
+4. then add the inviatied accounts to respective OUs goto organization console select the account we want to add(see the image) --> click on actions --> click on move --.> give the OU name where we want to move the account --> click on move.
 
-Step 1 : Create a DMS CLuster
-Step 2 : Create a Source Endpoint
-Step 3 : Create a Target Endpoint
+selected account is not visible in the image because not able capture full screen.
+![alt text](.images/ou1.png)
+![alt text](.images/ou2.png)
 
-Step 4 : Configure the migration task
-![alt text](.images/DMS1.png)
+### AWS SCP(Service Control Policies):
+it's used to set the permission boundaries or restrictions on the accounts in organization. even if you logged in as root user of the account you can't perform the actions which are restricted by SCP. we can create multiple policies and attach to OUs or accounts.
 
+1. goto AWS Organizations console --> on left pane click on policies --> click on create policy --> give the name and description --> in policy editor section we can write the policy in JSON format or use visual editor to create the policy --> click on create policy.
+![alt text](.images/scp.png)
 
-Migrate only: Migrate data from source to target once (Full load)
+2. then click on that policy we created --> click on target tab --> click on attach --> select the OU(to attach policy for multiple accounts) or account (if you select root it will attach policy to all OUs and accounts) where we want to attach this policy --> click on attach policy.
+![alt text](.images/scp2.png)
+![alt text](.images/scp3.png)
 
-Migrate and replicate : Migrate data from source to target once and continue to replicate changes (Full load and CDC)
+## AWS IAM Identity Center:
+it's used to manage the access to multiple AWS accounts in organization. we can create users and groups in IAM Identity Center and assign the permission sets to those users/groups. we can also integrate with SSO providers like Okta, Azure AD, etc.
 
-Replicate only : Replicate data from source to target now or at a specified milestone (CDC only)
+### Creating IAM Identity Center:
+1. goto AWS IAM Identity Center console --> click on enable(if we enable in one region no need to enable in other regions) --> in instance configuration select single-region or multi-region or custom instance click on enable.
+![alt text](.images/ic.png)
 
-CDC --> means Change Data Capture
+2. on right side if you scrolldown you will see access url's we can customize ipv4 url click on edit --> give the url name --> click on save changes. we can use this url to login to IAM Identity Center.
+![alt text](.images/ic2.png)
+![alt text](.images/ic3.png)
 
+https://pruthvi.awsapps.com/start --> using this ipv4 url we can login to multiple accounts.
 
+3. if you want configure Azure active directory  or something as identity center on iam identity center console --> on left pane click on settings --> click on identity source tab --> click on change identity source --> have 3 options 1. IAM Identity Center (default) 2. External identity provider 3. Active directory select the option you want and click on next if you select Active directory it will ask for AD connector( we need to create AD connector(have directory service they we do this) and select there Aviz made video in youtube search) --> confirm changes.
+![alt text](.images/ic4.png)
+![alt text](.images/ic5.png)
 
+if you select the external identity provider option we will download the service provider metadata file(it contain location, access portal url etc.) and configure that file to external identity provider and download the metadata file from external identity provider and upload that file to IAM Identity Center(or paste the idp sign-in URL and idp issuer URL and idp certificate). --> click on next
+![alt text](.images/ic6.png)
+![alt text](.images/ic7.png)
 
+### permission sets in IAM Identity Center:
+it's used to assign the permissions to users/groups in IAM Identity Center. we can create multiple permission sets and assign to users/groups. we can also use AWS managed policies or create custom policies.
+
+1. goto iam identity center console --> on left pane click on permission sets --> click on create permission set --> select the predefined or custom permission sets --> click nexr give name and description and select the session duration(any user have this permission set that user session will referesh after this duration) -> click next --> review the settings and click on create permission set.
+![alt text](.images/ps.png)
+![alt text](.images/ps1.png)
+![alt text](.images/ps2.png)
+
+2. create users in IAM Identity Center console --> on left pane click on users --> click on add user --> give the user name and email address and select the password setup type(onetime or reset password link to mail) other details --> click next --> in groups section we can add the user to existing group or create new group and add the user to that group --> click next --> review the settings and click on create user.
+![alt text](.images/ps3.png)
+![alt text](.images/ps4.png)
+![alt text](.images/ps5.png)
+
+then user get mail with login detials.
+
+3. then assign user ot accounts goto iam identity center console --> on left pane click on AWS accounts --> select the account/ OU --> click on assign users and groups --> select the user and group we want to assign --> click on next --> select the permission set we created in previous step --> click on finish.
+![alt text](.images/user.png)
+![alt text](.images/user1.png)
+![alt text](.images/user2.png)
+![alt text](.images/user3.png)
+
+then use this url to sign in: https://pruthvi.awsapps.com/start
+
+![alt text](.images/user4.png)
