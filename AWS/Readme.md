@@ -1313,3 +1313,10 @@ then user get mail with login detials.
 then use this url to sign in: https://pruthvi.awsapps.com/start
 
 ![alt text](.images/user4.png)
+
+## AWS Cloud formation:
+https://former2.com/ --> using this website we can create cloudformation templates from existing AWS resources.
+
+1. Open the website https://former2.com/ and add the access and secret access keys for your AWS account.
+2. on leftpane you can see different aws resources click on s3 will see the buckets available in your account then click on any bucket it will give the cloudfromation template of that bucket.
+3. not only cloud formation we can also generate Terraform templates and other infrastructure as code formats using this website.
