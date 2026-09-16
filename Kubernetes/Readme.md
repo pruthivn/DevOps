@@ -184,7 +184,7 @@ imagePullPolicy: IfNotPresent(Uses the local image if it exists; downloads regis
 
 ### 14. pod stays in pending state event shows failed scheduling how will you resolve this issue?
 1. use describe command to check the exact reason scheduling error. check the cluster has sufficient resource using *kubectl top nodes* insufficient resource are common cause. Check nodes nodes are healthy using *kubectl get nodes.*
-2. Check the Node rules like Taint & toleraions, node-affinity, nodeselector are blocking the pod. take the confirmation to change the pod(tolerations) or node rules if not possible create a new node. use the cluster auto-scaler to scale k8's cluster.
+2. Check the Node rules like Taint & toleraions, node-affinity, nodeselector are blocking the pod. take the confirmation to change the pod(tolerations) or node rules if not possible to create a new node. use the cluster auto-scaler to scale k8's cluster.
 
 ### 15. Difference between Node Affinity, Node selector , Taint & tolerations?
 A. if Node Affinity, Node selector configured nodes attracts the pods but Taint and tolerations are configured nodes repel the pods. we cannot use taints to force a pod onto a specific node, is we use node selector if pod lable not match pod stuck in peding state forever.
@@ -288,7 +288,7 @@ DNS → Load Balancer → Ingress → Service → Pods → Database
 ## Interview Questions form DigiCert
 
 ### 1. what is Static pod?
-A. Static Pods are managed directly by the kubelet on a specific node, not by the Kubernetes API server or a Deployment.
+A. Static Pods are directly managed by the kubelet on a specific node, not by the Kubernetes API server or a Deployment.
 we put the pod yaml file in **/etc/kubernetes/manifests** directory kubelet watches this directory and automatically creates or restarts the Pods if they stop.
 
 Because static pods do not depend on the API server to run, they are perfect for running the software needed to start the API server. 
@@ -353,7 +353,7 @@ stateful applications need to save status and session info we can achieve this u
 ### 2. You need to ensure a specific pod is remain operational how to make sure the pod is always running?
 1. using Deployments and provides desired replica counts.
 2. config *restartpolicy: always* Forces the container to restart immediately if application process crashes.
-3. using linvenss probes to restart stuck containers and Readiness Probes to stop traffic to the Pod by removing fro service if it becomes temporarily overloaded.
+3. using livenss probes to restart stuck containers and Readiness Probes to stop traffic to the Pod by removing fro service if it becomes temporarily overloaded.
 4. Adding Resource request and limits to Place the Pod in the Guaranteed Quality of Service (QoS) class.
 5. Applying Pod Anti-Affinity it will prevents pods matching specific labels from being placed on the same node so all pods are distributed across the nodes.
 6. creating PDB.
