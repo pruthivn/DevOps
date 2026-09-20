@@ -1,3 +1,160 @@
+# Aviz AWS interview Questions(realtime interview questions):
+
+## straight questions: 
+
+1. Explain the difference between IAM Users, Groups, Roles, and Policies. When would you use each?
+
+A. An IAM User is a permanent identity with long-term credentials - I create these only for real humans who need
+console or CLI access. Groups are collections of users; I attach policies to groups (like Developers, DBAs, ReadOnly)
+instead of individual users so permission management scales. Roles are identities with temporary credentials that get
+assumed - I use them for EC2 instances, Lambda functions, cross-account access, and CI/CD pipelines so no long-
+term keys are involved. Policies are the JSON documents that actually define permissions, and they attach to users,
+groups, or roles. In my projects the rule is: humans get users in groups (or better, SSO), workloads always get roles, and
+policies are customer-managed for version control.
+
+2. What is the difference between identity-based policies and resource-based policies? Give a production example
+for each.
+
+A. An identity-based policy attaches to a user, group, or role and says what that identity can do. A resource-based policy
+attaches to the resource itself and says who can access it. Production example of identity-based: my ECS task role has
+a policy allowing dynamodb:GetItem and PutItem on one specific table. Resource-based example: an S3 bucket policy
+on our central logging bucket that allows CloudTrail and ALB log delivery from all our accounts, plus a KMS key policy
+allowing specific roles to decrypt. The key difference - resource-based policies can grant cross-account access
+directly because they name the principal, while identity-based policies only work within the account that owns the
+identity.
+
+3. How does IAM policy evaluation logic work? Walk through the order - explicit deny, SCP, permission boundaries,
+identity policies, and resource policies.
+
+A. The evaluation always starts with an implicit deny - nothing is allowed by default. Then the order is: first, if there is an
+explicit Deny anywhere (identity policy, resource policy, SCP, boundary), the request is denied immediately - deny
+always wins. Second, SCPs from AWS Organizations must allow the action - if the SCP doesn't allow it, it fails
+regardless of the identity policy. Third, if a permission boundary is set, the action must be allowed in both the boundary
+AND the identity policy - the effective permission is the intersection. Fourth, either the identity-based policy or the
+resource-based policy must explicitly allow the action (within the same account, either one is sufficient). If nothing
+allows it, the implicit deny applies. I remember it as: explicit deny > SCP > boundary > an explicit allow somewhere.
+
+4. What is the IAM policy evaluation flow when a user from Account A tries to access an S3 bucket in Account B?
+
+A. Cross-account access requires an allow on both sides. In Account A, the user or role needs an identity-based policy
+allowing the S3 actions on the bucket ARN in Account B. In Account B, the bucket policy must explicitly allow the
+Account A principal (or the whole account) to perform those actions. If either side is missing, the request is denied.
+Also, SCPs in both accounts must not block it, and if the bucket uses SSE-KMS, the principal also needs kms:Decrypt on
+the key in Account B - the KMS key policy has to allow that too. That KMS piece is what I've seen break cross-account
+access most often in real projects.
+
+5. What are IAM Permission Boundaries and how do they differ from standard policies? When would you use them?
+
+A. A permission boundary is an advanced feature where you attach a managed policy to a user or role that defines the
+maximum permissions that identity can ever have. It doesn't grant anything by itself - the effective permission is the
+intersection of the boundary and the identity policy. The classic use case, which we used in my project, is delegated
+role creation: developers can create IAM roles for their Lambda and ECS workloads themselves, but an SCP forces
+every role they create to carry our standard boundary policy. So even if a developer attaches AdministratorAccess to
+their role, the role can only actually do what the boundary allows. Standard policies grant; boundaries cap.
+
+6. Explain the difference between AWS-managed policies, customer-managed policies, and inline policies. What are
+the pros and cons of each?
+
+A. AWS-managed policies are created and maintained by AWS (like AmazonS3ReadOnlyAccess) - good for quick starts
+and AWS keeps them updated for new services, but they're often broader than you want and you can't edit them.
+Customer-managed policies are ones you write - they're reusable, versioned (up to 5 versions with rollback), and you
+can manage them through Terraform or CloudFormation, which is what I do in production. Inline policies are
+embedded directly in a single user or role - they can't be reused, are harder to audit, and get deleted with the identity.
+My practice: customer-managed for everything standard, inline only for tightly-coupled one-off exceptions where I
+deliberately want the policy to die with the role.
+
+7. How do you implement least privilege access in an organization with 500+ developers across multiple AWS
+accounts?
+
+A. At that scale you cannot manage individual users - I'd approach it in layers. First, no IAM users at all: everyone comes
+through IAM Identity Center federated to the corporate IdP, so access is group-based and centrally revoked. Second,
+define permission sets per persona - developer, DBA, SRE, read-only - instead of per person, and map IdP groups to
+accounts. Third, put guardrail SCPs at the OU level (deny leaving allowed regions, deny disabling CloudTrail, deny IAM
+user creation). Fourth, use permission boundaries so teams can self-service roles for their workloads without
+escalation. Fifth, continuously right-size: IAM Access Analyzer policy generation from CloudTrail and Access Advisor
+last-accessed data to strip unused permissions. Least privilege at scale is a process, not a one-time setup.
+
+8. What is the difference between AssumeRole, AssumeRoleWithSAML, and AssumeRoleWithWebIdentity? When is
+each used?
+
+A. All three are STS operations that return temporary credentials, but the caller differs. AssumeRole is used by an existing
+AWS principal - a user or role - to switch into another role, typically for cross-account access or privilege separation;
+it can be protected with ExternalId and MFA. AssumeRoleWithSAML is used for enterprise federation - the user
+authenticates against a SAML IdP like Azure AD or Okta, and presents the SAML assertion to STS instead of AWS
+credentials; this is how corporate SSO to the console works. AssumeRoleWithWebIdentity exchanges an OIDC token
+for credentials - no AWS credentials needed to call it. That's the foundation of IRSA in EKS and GitHub Actions OIDC
+deployments, which is how my pipelines authenticate to AWS without stored secrets.
+
+9. Explain the concept of IAM Roles for Service Accounts (IRSA) in EKS. Why is it better than using node-level IAM
+roles?
+
+A. IRSA lets an individual Kubernetes service account map to an IAM role, using the EKS OIDC provider. The pod's service
+account token is exchanged via AssumeRoleWithWebIdentity for temporary credentials scoped to that role. With node-
+level roles, every pod on the node inherits the same permissions - so if one pod needs S3 write, all pods on that node
+effectively get it, which breaks least privilege and blast-radius isolation. With IRSA, my payment service pod gets only
+its DynamoDB permissions and my report service pod gets only its S3 permissions, even on the same node. The trust
+policy conditions on the specific namespace and service account, and credentials are temporary and auto-rotated.
+Newer alternative is EKS Pod Identity, but the principle is the same - identity per workload, not per node.
+
+10. What is STS (Security Token Service)? How does it work with temporary credentials and what are its key API calls?
+
+A. STS is the service that issues temporary, limited-lifetime credentials - access key, secret key, and a session token - so
+you never need to distribute long-term keys. Sessions last from 15 minutes up to 12 hours depending on configuration.
+Key API calls: AssumeRole (cross-account and role switching), AssumeRoleWithSAML (enterprise SSO),
+AssumeRoleWithWebIdentity (OIDC - IRSA, GitHub Actions), GetSessionToken (mainly for MFA-protected API access
+with an IAM user), GetCallerIdentity (the whoami of AWS - my first troubleshooting command), and
+DecodeAuthorizationMessage for decoding encoded access-denied errors. Everything role-based in AWS - instance
+profiles, Lambda execution roles, federation - is STS under the hood.
+
+11. How do Service Control Policies (SCPs) work in AWS Organizations? Can an SCP grant permissions?
+
+A. SCPs are organization-level guardrails applied to accounts or OUs in AWS Organizations. They never grant permissions
+- they only define the maximum available permissions for an account. The actual grant still has to come from an
+identity or resource policy inside the account. SCPs filter down: an action must be allowed at every level of the
+hierarchy (root - OU -> account) to be usable, and they apply to everyone in the account including the account root
+user. Typical guardrails I've implemented: deny regions outside our approved list, deny CloudTrail/Config tampering,
+deny IAM user access-key creation, and deny deletion of logging buckets. One catch - SCPs don't affect the
+management account or service-linked roles.
+
+12. What happens when an IAM user has an explicit allow in their policy but an explicit deny in the SCP? Who wins?
+
+A. The explicit deny in the SCP wins - deny always beats allow, at every level of evaluation. Actually, even without an
+explicit deny, if the SCP simply doesn't allow the action, the user is blocked, because the effective permission is the
+intersection of the SCP and the identity policy. The identity policy's allow only matters within the space the SCP
+permits. This is exactly why organizations use SCPs as guardrails: no admin inside a member account can override
+them, since they're controlled from the management account.
+
+13. What is the purpose of aws:SourceIp, aws:RequestedRegion, and aws:PrincipalOrgID condition keys? Give a real-
+world use case for each.
+
+A. aws:SourceIp restricts by caller IP - real use case: our bucket policy for an internal reporting bucket denies access
+unless the request comes from the office VPN CIDR ranges. aws:RequestedRegion controls which region the API call
+targets - we used it in an SCP to keep all workloads in ap-south-1 and us-east-1 for compliance, while exempting
+global services. aws:PrincipalOrgID checks that the calling principal belongs to your AWS Organization - the cleanest
+way to secure a shared S3 bucket or KMS key: instead of listing 20 account IDs in the resource policy, one condition
+"aws:PrincipalOrgID": "o-xxxx" allows the whole org and nothing outside it. That last one massively simplified our
+central artifact bucket policy.
+
+14. How do you secure the root account in a production AWS environment? List at least 6 best practices.
+
+A. My checklist: (1) Enable hardware MFA on root - not just virtual. (2) Delete any root access keys - root should never
+have programmatic access. (3) Use root only for the handful of tasks that require it (account closure, some billing
+settings) and log in through a monitored break-glass procedure. (4) Set a strong unique password stored in a controlled
+vault with dual custody. (5) Create a CloudWatch/EventBridge alert on any root login or root API activity from CloudTrail
+- this should page someone. (6) Set account security contacts and verify the root email is a distribution list owned by
+the org, not an individual. (7) At org level, use SCPs to restrict what root in member accounts can do, and prefer
+Organizations-created accounts where root has no password until reset.
+
+15. What is IAM Access Analyzer and how does it help with security posture management?
+
+A. Access Analyzer continuously analyzes resource policies - S3 buckets, IAM roles, KMS keys, Lambda, SQS, secrets -
+and flags any resource shared outside your zone of trust (your account or organization). It's based on formal reasoning
+over the policies, not traffic. In practice I use it for three things: detecting unintended external access (a bucket policy
+or role trust that allows an unknown account - finding shows up immediately), generating least-privilege policies from
+actual CloudTrail activity - you point it at a role's history and it drafts the policy covering only what was really used,
+and validating policies at author time with its policy checks for security warnings and errors. The unused-access
+analyzer also reports roles and permissions not used in N days, which feeds our quarterly access reviews.
+
 # TCS interview Questions
 
 
