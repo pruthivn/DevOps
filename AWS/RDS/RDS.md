@@ -241,8 +241,8 @@ OLAP : Redshift
 --> MPP : Massively Parallel processing (Data stores across the nodes)
 --> Default Data Compression : 
 
-Leader Node : The "manager". It receives the SQL query, create an execution plan, and distributes wqorkto the computer nodes. It doesn't store user data. 
-Compute Node : The "Worker". It received instructions from leader node and executes the query in parallel on theit portion of the data and send result back to the leader node. 
+Leader Node : The "manager". It receives the SQL query, create an execution plan, and distributes work to the computer nodes. It doesn't store user data. 
+Compute Node : The "Worker". It received instructions from leader node and executes the query in parallel on their portion of the data and send result back to the leader node. 
 
 RA3 : RMS Redshift managed storage.. 
 
@@ -264,7 +264,7 @@ mysql --> DMS --> mysql
 Migrating different DB engines like mysql to postgresql, postgresql to mysql etc is called Heterogeneous Migration. we can use DMS + SCT to migrate the data from on-prem or existing AWS RDS DB engine to AWS RDS DB engine.
 On-Prem / AWS Existing DB Engine (mysql/Mongo/Redshift) --> AWS RDS DB Engine (mysql/postgresql)
 
-postgresql --> DMS + SCT --> mysql
+postgresql --> DMS + SCT(Schema Conversion Tool) --> mysql
 
 ## Creating DMS Migration :
 1. create a DMS cludter goto DMS console on leftpane click on migrate or replicate then click on provisioned instances --> click on create replication instance --> give the name and description --> select the instance class and storage type and size and also select the single AZ or multi AZ --> in connectivity section select the VPC enable public access if required in advanced settings section select AZ's, Security group, KMS key if you want to encrypt the data --> you want to maintenance window select the day, time and duration go with default options --> click create replication instance
@@ -282,7 +282,9 @@ postgresql --> DMS + SCT --> mysql
 ![alt text](../.images/DMS3.png)
 
 Step 1 : Create a DMS CLuster
+
 Step 2 : Create a Source Endpoint
+
 Step 3 : Create a Target Endpoint
 
 Step 4 : Configure the migration task

@@ -46,7 +46,7 @@ Example: If your RPO is 1 hour, you must back up your data at least every hour. 
 ![alt text](.images/dlm2.png)
 ![alt text](.images/dlm3.png)
 
-**Step-2:**in schedue details tab we schedue how frequently we need to create snapshots(like everyday or hours or weeks) *rentenion type* here is how many days or how many latest snapshots we can retain it has 2 options 
+**Step-2:**in schedule details tab we schedule how frequently we need to create snapshots(like everyday or hours or weeks) *retention type* here is how many days or how many latest snapshots we can retain it has 2 options 
 1. count -- last 5 or 10(or number we gave) latest snapshots we can specify number
 2. Age -- if we select age we can  give how many weeks or days snapshots we can retian(if we give 2 last 2 weeks snapshots reatined) if it cross 1 week that snapshot automatically delted by AWS.
 
@@ -397,7 +397,7 @@ we can create this ssm console as well goto ssm console on left pane click on se
 it is used to run commands in ec2 instance.
 
 Before going to run command attach necessary policies to the role like ssm full access etc.
-1. goto system manger on left pane click on run command --> run command --> on command document section select *AWS-RunShellScript*(to run commands in shell) --> command parameters section give commands you want to run --> target selection section select ec2 instance(we can select multiple instances) --> ratecontrol section(we can control in how many targets we can run commands ata time(100 instances run cmds in 50 instance first then 50)error threshold it will stop execution if cmds fails in specified targets) --> output options sections(we can store cmds output in s3 or cloud watch logs) then we other options also explore the click run.
+1. goto system manger on left pane click on run command --> run command --> on command document section select *AWS-RunShellScript*(to run commands in shell) --> command parameters section give commands you want to run --> target selection section select ec2 instance(we can select multiple instances) --> ratecontrol section(we can control in how many targets we can run commands at a time(100 instances run cmds in 50 instance first then 50)error threshold it will stop execution if cmds fails in specified targets) --> output options sections(we can store cmds output in s3 or cloud watch logs) then we other options also explore the click run.
 ![alt text](.images/runcmd.png)
 ![alt text](.images/runcmd1.png)
 
@@ -531,7 +531,8 @@ Suggested to run less important workloads if suddenly instance terminated it aff
 1. goto ec2 console --> on left pane click on spot instnaces --> click on create spot fleet --> select the instance you want --> in addtional launch parameters we add additional requirements like ebs volumes, SG's , tenancy(means if our instance want to run only on dedicated physical server(in that physical server only our instance running) we select dedicated other wise we selsct shared), keypair etc. --> in additional request details untick *applydefaults* you will when you want sart and stop the instance and other details.
 ![alt text](.images/spot1.png)
 ![alt text](.images/spot2.png)
-2. in Target capacity tab we will define instance/cpu/memroy count and *set cost intance price*(this is where we mention our price the spot instance) --> then give network details --> in instance type requirement tab we will give cpu, memory details in *preview matching instance tab* we will select multiple instance types to increase fleet strength but it randomly allocates anyone of these types(if you want instance with min/max 4 cpus and memroy min/max 8gb it show all the instance type that matching this cpu and memory see the second image below) --> select your allocation strategy the luanch instance.
+2. in Target capacity tab we will define instance/cpu/memroy count and *set cost intance price*(this is where we mention our price the spot instance) --> then give network details --> in instance type requirement tab we will give cpu, memory details in *preview matching instance tab* we will select multiple instance types to increase fleet strength but it randomly allocates anyone of these types(if you want instance with min/max 4 cpus and memroy min/max 8gb it show all the instance type that matching this cpu and memory see the second image below) --> select your allocation strategy the launch instance.
+
 ![alt text](.images/spot3.png)
 ![alt text](.images/spot4.png)
 
@@ -620,6 +621,7 @@ A. using pipeline mechanism means in ec2 security group we will route the port 8
 
 #### ELB Routing rules/Algorithms:
 **1. Round Robin:** Classic Load Balancers (CLBs) use a round-robin algorithm to distribute incoming requests evenly across all healthy targets.
+
 **2. Least Outstanding Requests (LOR):** The ALB dynamically tracks how many active, unfinished HTTP requests each EC2 instance is currently processing. It automatically routes the next incoming request to the server with the lowest number of active jobs(requests).
 
 Ex: If Server A has 5 active requests and Server B has 2 active requests, the ALB will route the next incoming request to Server B because it has the least number of active jobs.
