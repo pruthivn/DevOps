@@ -52,6 +52,7 @@ Thread pools, connection limits, caches, retries, and circuit breakers all exist
 3. before updating control plane check the kubectl version is same in control plane and in node for example if control plane is 1.28 and node has 1.27 we must update the version in node to 1.28 before the updating the control plane to 1.29 or 1.30.
 
 **Note:** if we didn't upgrade nodes kubectl version to control plane version AWS will completely block your control plane upgrade.
+
 4. then we can upgrade the EKS cluster through AWS console or through aws cli using below command
 ```sh 
 aws eks update-cluster-version --name <cluster-name> \
@@ -65,6 +66,7 @@ eksctl upgrade nodegroup \
   --region=region-code
 ```
 **Note:** if you see the error while updating or draining the node it is mostly due to Pod Disruotion Budget use *--force-upgrade* with eksctl command.
+
 6. then uncordon the node using *kubectl uncordon*
 7. repeat the same for every node.
 
@@ -80,6 +82,7 @@ kubectil get --raw'=/readyz?verbose'
 ```
 This endpoint checks the readiness of the API Server and verifies that all its internal dependencies-such as etcd, admission controllers, authentication, and authorization are functioning correctly.
 If the API Server is unhealthy, this command usually reports which component is failing.
+
 4. Next, I checked API Server metrics(because every K8's operation goes through API server).I looked for, Request latency, Total API requests, Active watch connections, Request queue length, Error rate, Control Plane CPU, Memory usage, etcd response time. At this stage, I noticed that the API Server CPU utilization was consistently above 90%.
 5. At this point, I wanted to identify who was generating so many API requests. The API Server logs showed repeated requests coming from one controller. After reviewing its logs, we found that the controller was continuously polling the API Server every second instead of relying on Kubernetes watch events.
 
@@ -106,7 +109,7 @@ A. if *kubectl get endpoints* shows None the service isn't linked any pod. compa
 check the pods are ready or not using *kubectl get pods* if pods are not ready readiness probe is failed if it failed it removes pods from service.
 
 ### 9. What is the Difference between CreateContainerConfigError and CreateContainerError?
-A. **CreateContainerError:** This error is occur due to *cmd or Entrypiont* errors(like invalid commands in *cmd*), invalid mount points, invalid ports or configuring already using ports. this error occur during the container creation.
+A. **CreateContainerError:** This error is occur due to *cmd or Entrypiont* errors(like invalid commands in *cmd*), invalid mount points, invalid ports or configuring already used ports. this error occur during the container creation.
 
 Make sure commands valid in cmd or entrypoint,configured volumemount paths, using right ports then restart the deployment to resolve this issue.
 
@@ -117,7 +120,7 @@ Make sure config maps, secrets, env vars, volume mount are correctly configured 
 ### 10. What is *back-off restarting failed container* error in K8's?
 A. The "Back-off restarting failed container" error (commonly visible as *CrashLoopBackOff* k8's logs) means that your container is repeatedly crashing immediately after starting, and Kubernetes is delaying its next restart to protect cluster resources.
 
-the issue occurs due misconfigurations in config maps. secrets and service account misconfiguration, resource issues, incorrect env vars, missing app dependencies, failing livness probes and issues with third party services(pod will crash if it depends on external services that have problems with DNS, database, or API.)
+the issue occurs due to misconfigurations in config maps. secrets and service account misconfiguration, resource issues, incorrect env vars, missing app dependencies, failing livness probes and issues with third party services(pod will crash if it depends on external services that have problems with DNS, database, or API.)
 
 **Backoff:** means When a container keeps failing to start, k8's doesn’t keep restarting it immediately. so it uses *Backoff* mechanism which increases the wait time before each restart attempt. 
 
@@ -181,10 +184,10 @@ imagePullPolicy: IfNotPresent(Uses the local image if it exists; downloads regis
 
 ### 14. pod stays in pending state event shows failed scheduling how will you resolve this issue?
 1. use describe command to check the exact reason scheduling error. check the cluster has sufficient resource using *kubectl top nodes* insufficient resource are common cause. Check nodes nodes are healthy using *kubectl get nodes.*
-2. Check the Node rules like Taint & toleraions, node-affinity, nodeselector are blocking the pod. take the confirmation to change the pod(tolerations) or node rules it not possible create a new node. use the cluster auto-scaler to scale k8's cluster.
+2. Check the Node rules like Taint & toleraions, node-affinity, nodeselector are blocking the pod. take the confirmation to change the pod(tolerations) or node rules if not possible to create a new node. use the cluster auto-scaler to scale k8's cluster.
 
 ### 15. Difference between Node Affinity, Node selector , Taint & tolerations?
-A. if Node Affinity, Node selector are configured nodes attracts the pods but Taint and tolerations are configured nodes repel the pods. we cannot use taints to force a pod onto a specific node, is we use node selector pod lable not match pod stuck in peding state forever.
+A. if Node Affinity, Node selector configured nodes attracts the pods but Taint and tolerations are configured nodes repel the pods. we cannot use taints to force a pod onto a specific node, is we use node selector if pod lable not match pod stuck in peding state forever.
 
 Node affinity have Advanced matching rules (like podAffinity) require the K8's scheduler to evaluate every node against every pod. This slows down cluster performance in large environments.
 
@@ -235,7 +238,7 @@ A. **CRD(Custom Resource Definition):** a feature in k8's that lets you extend t
 
 By default, Kubernetes only understands built-in objects like *Pods, Services, and Deployments*. Applying a CRD teaches Kubernetes a brand-new object type—such as a Database, Backup, or SSLWithCert—allowing you to manage it using standard kubectl commands.
 
-we need two things CRD file(contains new object type named *MyDatabase*, and here are the fields it is allowed to have) and Operator(Custom controller) watches our custom resource and takes real-world action.
+we need two things CRD file(contains new object type named *MyDatabase*, and other fields it is allowed to have) and Operator(Custom controller) watches our custom resource and takes real-world action.
 
 **UseCases:**
 Cert-Manager: Uses CRDs like Certificate and Issuer to automate SSL certificates.
@@ -244,7 +247,7 @@ ArgoCD: Uses CRDs like Application and AppProject to manage GitOps deployments.
 
 Istio / Linkerd: Use CRDs like VirtualService or Gateway to route service mesh network traffic.
 
-### 20. Liveness probe is failing and pod keeps on restarting how would you dolve this issue?
+### 20. Liveness probe is failing and pod keeps on restarting how would you solve this issue?
 1. i will inspect the pod using describe command to check the error is secrets or config maps, invaild volume mounts or service account, invalid image name/tags.
 2. then i will verify the probe configuration like path, port, initialDelaySeconds, Period seconds, failurethreshold. and i will exec the pod use curl on healthy endpoint configure the healthy path(healthy endpoint).
 3. then i will check the pod logs any issue from app side.
@@ -285,7 +288,7 @@ DNS → Load Balancer → Ingress → Service → Pods → Database
 ## Interview Questions form DigiCert
 
 ### 1. what is Static pod?
-A. Static Pods are managed directly by the kubelet on a specific node, not by the Kubernetes API server or a Deployment.
+A. Static Pods are directly managed by the kubelet on a specific node, not by the Kubernetes API server or a Deployment.
 we put the pod yaml file in **/etc/kubernetes/manifests** directory kubelet watches this directory and automatically creates or restarts the Pods if they stop.
 
 Because static pods do not depend on the API server to run, they are perfect for running the software needed to start the API server. 
@@ -295,7 +298,7 @@ Static Pods are commonly used for control plane components like the API server, 
 ### 2. What is PDB(Pod Disruption Budget)?
 A. A Pod Disruption Budget (PDB) is a Kubernetes resource that ensures a minimum number of application pods remain available during voluntary disruptions, such as node maintenance, cluster upgrades, or node draining.
 
-in the below yaml minAvailabel is 2 it will maintain 2 pods availabe if we want remove that pods Pod Disruption Budget blocks the eviction until replacement pods(new pods) become available.
+in the below yaml *minAvailable* is 2 it will maintain 2 pods availabe if we want remove that pods Pod Disruption Budget blocks the eviction until replacement pods(new pods) become available.
 
 ```yaml
 apiVersion: policy/v1
@@ -350,7 +353,7 @@ stateful applications need to save status and session info we can achieve this u
 ### 2. You need to ensure a specific pod is remain operational how to make sure the pod is always running?
 1. using Deployments and provides desired replica counts.
 2. config *restartpolicy: always* Forces the container to restart immediately if application process crashes.
-3. using linvenss probes to restart stuck containers and Readiness Probes to stop traffic to the Pod by removing fro service if it becomes temporarily overloaded.
+3. using livenss probes to restart stuck containers and Readiness Probes to stop traffic to the Pod by removing fro service if it becomes temporarily overloaded.
 4. Adding Resource request and limits to Place the Pod in the Guaranteed Quality of Service (QoS) class.
 5. Applying Pod Anti-Affinity it will prevents pods matching specific labels from being placed on the same node so all pods are distributed across the nodes.
 6. creating PDB.
