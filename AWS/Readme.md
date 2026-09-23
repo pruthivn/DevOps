@@ -17,6 +17,7 @@ AWS uses s3 as backend platform for snapshots.
 --> If a volume is encrypted, and if we create a snapshot, snapshot also enabled with encryption defaultly.
 
 --> If any snapshot if encrypted with "default encryption key", we cannot share it with other aws accounts.
+
 --> If any snapshot if encrypted with "custom encryption key", we can share it with other aws accounts.. but we need to share the encryption key also.
 
 
