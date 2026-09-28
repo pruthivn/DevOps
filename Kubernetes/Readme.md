@@ -228,7 +228,7 @@ to overcome this k8's introduced  *RequiredDuringExecution* but it is not widely
 1. Check the requested storage class exists and set correctly.
 2. check matching PVC available or not and check if any error in dynamic provisioning(in cloud any errors while creating volumes dynamically).
 
-### 18. your app can't able connect with other service the error show DNS lookup failed how will solve this issue?
+### 18. your app can't able to connect with other service the error show DNS lookup failed how will you solve this issue?
 1. verify DNS using *kubectl exec -it pod_name nslookup kubernetes.default* command, if DNS fails pod can't resolves the service names.
 2. Verify CoreDNS pods are up and running using *kubectl get pods -n kubesystem*. if not running check the logs for errors.
 3. then check the /etc/resolv.conf file, network policies ensure pod can communicate with core DNS.
@@ -328,9 +328,9 @@ ArgoCD tells you that your 𝗞𝘂𝗯𝗲𝗿𝗻𝗲𝘁𝗲𝘀 𝗿𝗲𝘀
 ArgoCD can be green while but your app is broken.
 
 ### 4. Think of that customer reports your application is slow. No alerts are firing. So, where do we begin?
-1. First, I isolate the scope by checking CDN and Load Balancer metrics to see if the latency is global or isolated to a specific region or feature.
-2. then i will verify entire app is slow or is it a specific high-overhead action, like generating a report from app or proccessing a checkout.
-3. i will look at P95 and P99 latency metrics in cloudwatch or grafana dashboards(we can als see in new relic) if any issue with this metrics i will use tracing tools like jaeger to identify the where the slowness like connectivity with database, an un-indexed database query, or a slow third-party API call.
+1. First, I will isolate the scope by checking CDN and Load Balancer metrics to see if the latency is global or isolated to a specific region or feature.
+2. Then I will verify entire app is slow or is it a specific high-overhead action, like generating a report from app or proccessing a checkout.
+3. I will look at P95 and P99 latency metrics in cloudwatch or grafana dashboards(we can also see in new relic) if any issue with this metrics I will use tracing tools like jaeger to identify where the slowness is occurring, like connectivity with database, an un-indexed database query, or a slow third-party API call.
 4. then i will check the load on server like application is consuming more memory/cpu using uptime, sar, top commands, then will check file descriptor limits if app hits the heavy traffic file descriptor limits reaches and it causes to network packets to stall(paused, dropped).
 
 ### 4. Can the pod be OOM killed even without memory limit?

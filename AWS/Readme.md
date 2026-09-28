@@ -673,9 +673,9 @@ goto autoscaling group console select the ASG goto *Automatic scaling* tab you w
 
 1. **Simple Scaling:** Scaling instances using cpu usage or other metrics, triggering by cloudwatch alarms. if cpu > 80%  scale up the instances if cpu < 20% scale down instances.
 ![alt text](.images/sp.png)
-2. **Step Scaling:** it's similar like simple scaling we will add instances gradually according to cpu usage. if my cpu usage in in between 20% to 15% remove the 1 instance it's in between 15% to 10% remove the 2 instances like this.
+2. **Step Scaling:** it's similar like simple scaling we will add instances gradually according to cpu usage. if my cpu usage is in between 20% to 15% remove the 1 instance it's in between 15% to 10% remove the 2 instances like this.
 ![alt text](.images/step.png)
-3. **Target Tracking scaling:**AWS automaticly creates scale  up and sacle down the instance accrding cpu, network in/out etc. if cpu usage is >50% it will scale up instances(till avg cpu comes down to 50%) if cpu usage is <50% it will scale down.
+3. **Target Tracking scaling:**you select a target metric value(You define a target threshold for a metric e.g., maintain average CPU utilization at 50%), and AWS automatically handles the adjustments to maintain that target. if cpu usage is >50% it will scale up instances(till avg cpu comes down to 50%) if cpu usage is <50% it will scale down.
 
 Ex: if we have 2 instances we configured cpu 50% load goes 75%+ in 2 instances aws adding one instance will put the load at 50% it will add new instance(if cpu usage is 65% in each instance it will not add new instance) this how it works.
 ![alt text](.images/TTscaling.png)
