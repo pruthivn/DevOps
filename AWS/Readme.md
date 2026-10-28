@@ -702,7 +702,7 @@ Warm Pool – Pre-initialized instances kept in a stopped/running state so they 
 
 Instance Warm-up Period – Time given to a newly launched instance before it starts contributing to CloudWatch metrics (prevents premature scaling decisions based on incomplete data)
 
-Lifecycle Hooks – Allow you to pause instances during launch or termination to perform custom actions (e.g., pulling config, draining connections)
+Lifecycle Hooks – Allow you to pause instances during launch or termination to perform custom actions (e.g, pulling config, draining connections)
 
 ## S3:
 S3: Object Based Storage : GDrive / Dropbox / icloud
