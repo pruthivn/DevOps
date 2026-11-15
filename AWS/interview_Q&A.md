@@ -263,3 +263,39 @@ It detects Outdated software packages, known software vulnerabilities (CVEs), an
 **AWS Security Hub:**AWS Security Hub is a cloud security posture management (CSPM) service that acts as a central dashboard for security findings from AWS inspector, guard duty and other AWS and third-party tools.
 
 i will use both Guard duty and inspector to detect vulnerabilities and malicious activity in AWS accounts and then AWS security Hub aggeregates these findings via AWS organisations(Without this,we manually generate IAM roles, trade API keys, and accept 300 individual cross-account invitations it is a heavy process that takes weeks) and that data will be visible in a single dashboard.
+
+## Deloitte interview questions(Linkedin)
+
+### 1. An AWS Auto Scaling Group is configured correctly, but new instances are not launching during a traffic spike. What would you investigate?
+1. **Inspect Scaling Activity History:** Run aws autoscaling describe-scaling-activities or check the console Activity tab to read exact error messages (StatusMessage).
+2. **Check Quotas & Capacity:** Verify EC2 vCPU Service Quotas for the instance family and check for InsufficientInstanceCapacity errors in the targeted Availability Zones (AZs).
+3. **Audit Subnet IP Exhaustion:** Ensure the subnets attached to the ASG have available private IP addresses (AvailableIpAddressCount).
+4. **Verify IAM & KMS Permissions:** Confirm the ASG service-linked role has permission to use the custom KMS key attached to the EBS root volume in the Launch Template.
+5. **Check Lifecycle Hooks & Cooldowns:** Ensure a stuck lifecycle hook isn't blocking capacity or that a long default cooldown period isn't suppressing rapid scale-out events.
+6. **Review Launch Template & AMI:** Ensure the Launch Template is correctly configured with a valid AMI, instance type, and user data script. Misconfigurations here can prevent instances from launching successfully.
+
+### 2. Your application is deployed across multiple Availability Zones, but an AZ failure causes downtime. How would you identify the architectural gaps? 
+
+1. **Verify Load Balancer Cross-Zone & Subnet Mapping.** Ensure the ALB has subnets mapped in all active AZs and cross-zone load balancing is enabled.
+2. **Check Stateful Dependencies.** Verify whether the database (RDS Multi-AZ), cache (ElastiCache), or message brokers had automatic failover enabled, and whether the application properly handled DNS cache invalidation during failover.
+3. **Inspect Network Routing.** Ensure private subnets in surviving AZs do not route outbound traffic through a single NAT Gateway located in the failed AZ. Each AZ must have its own independent NAT Gateway.
+4. **Identify Hardcoded Endpoints.** Audit application configs for hardcoded private IP addresses or single-AZ endpoints instead of DNS names.
+
+### 3. Your AWS RDS database suddenly reaches 100% CPU utilization. How would you troubleshoot without impacting production?
+1. **Use Performance Insights.** Open AWS RDS Performance Insights (which uses lightweight sampling with negligible overhead) to identify the exact SQL queries (Top SQL) and wait events (e.g., CPU, IO:DataFileRead) driving the load.
+2. **Query Active Sessions Safely.** Connect to the database and run non-blocking read queries (SHOW FULL PROCESSLIST; in MySQL or SELECT pid, now() - query_start AS duration, query, state FROM pg_stat_activity WHERE state != 'idle'; in PostgreSQL) to spot long-running queries or missing indexes.
+3. **Check CloudWatch Enhanced Monitoring.** Inspect OS-level metrics (ReadIOPS, SwapUsage, DatabaseConnections) to see if connection pooling exhaustion or disk swapping is amplifying CPU spikes.
+4. **Mitigate Without Restarting.** Terminate runaway read queries (KILL <id> or pg_cancel_backend(<pid>)) rather than rebooting the instance, and offload read traffic to a Read Replica if available.
+
+### 5. An EC2 instance in a private subnet cannot access external services. How would you investigate the networking configuration? 
+1. **Verify Route Tables.** Check the private subnet's route table to confirm a 0.0.0.0/0 route points to a NAT Gateway (for IPv4) or Egress-Only Internet Gateway (for IPv6).
+2. **Check NAT Gateway Placement.** Confirm the NAT Gateway resides in a public subnet whose route table has a 0.0.0.0/0 route pointing to an Internet Gateway (IGW).
+3. **Audit Security Groups & NACLs.** Ensure the EC2 instance's Security Group allows outbound traffic (port 443/80), and the NACLs on both the private and public subnets allow outbound requests and inbound ephemeral return traffic.
+4. **Verify DNS Resolution.** Confirm enableDnsHostnames and enableDnsSupport are enabled on the VPC so the instance can resolve external domain names
+
+### 6. How would you design a multi-region disaster recovery architecture with minimum RTO and RPO? 
+To achieve near-zero RTO (seconds to minutes) and RPO (seconds), implement an Active-Active Multi-Region architecture:
+1. **Traffic Routing.** Use Amazon Route 53 with Latency-Based Routing and active DNS health checks (or AWS Global Accelerator) to automatically shift traffic away from an unhealthy region.
+2. **Compute Layer.** Run identical stateless compute clusters (EKS or EC2 ASGs) in both regions, pre-warmed to handle baseline traffic and configured to auto-scale on failover.
+3. **Data Layer.** Use Amazon Aurora Global Database (storage-level replication with typical RPO < 1 second and RTO < 1 minute) or Amazon DynamoDB Global Tables (active-active multi-region writes).
+4. **Storage & State.** Enable S3 Cross-Region Replication (CRR) with Replication Time Control (RTC) for object storage, and store session state externally in replicated stores rather than local memory.

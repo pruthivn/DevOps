@@ -357,3 +357,19 @@ stateful applications need to save status and session info we can achieve this u
 4. Adding Resource request and limits to Place the Pod in the Guaranteed Quality of Service (QoS) class.
 5. Applying Pod Anti-Affinity it will prevents pods matching specific labels from being placed on the same node so all pods are distributed across the nodes.
 6. creating PDB.
+
+
+## Deloitte Interview Questions (Linkedin)
+### 1. Your production application is running on AWS EC2, but users suddenly start receiving 504 Gateway Timeout errors. How would you troubleshoot?
+A 504 error indicates the load balancer (ALB/CLB) closed the connection because the backend server took too long to respond.
+
+1. **Verify Security Groups & NACLs:** Ensure the EC2 security group allows inbound traffic from the ALB security group on the application port, and that stateless Network ACLs allow both inbound requests and outbound ephemeral return ports (1024–65535).
+
+2. **Check ALB & App Timeouts:** Compare the ALB idle timeout (default 60s) with your application/web server (Nginx, Gunicorn, Node.js) keep-alive timeout. The backend timeout must be higher than the ALB timeout to prevent premature socket closures.
+
+3. **Inspect Resource Saturation:** Check CloudWatch metrics (CPUUtilization, NetworkIn/Out) and OS-level memory (dmesg | grep -i oom) to ensure the Linux OOM killer is not silently terminating worker processes.
+
+4. **Analyze ALB Access Logs:** Check target_processing_time versus request_processing_time to isolate whether the delay is inside the application code or waiting on downstream dependencies (like RDS).
+
+
+###
