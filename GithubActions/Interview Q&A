@@ -1,0 +1,7 @@
+## Delloite (Linkedin)
+
+### 1. Your GitHub Actions pipeline takes 45 minutes to complete. How would you optimize it without compromising security? 
+1. **Implement Dependency & Layer Caching:** Use actions/cache for package managers (npm, Maven, pip) and Docker Buildx layer caching (type=gha) to avoid rebuilding unchanged layers.
+2. **Parallelize Test Suites:** Split integration and unit tests across a strategy.matrix using test sharding so multiple runners execute concurrently.
+3. **Use Path Filtering:** Configure paths or paths-ignore triggers so documentation or frontend changes don't trigger backend builds.
+4. **Upgrade Runners & Scope Security:** Move heavy builds to larger self-hosted runners or GitHub larger hosted runners. Keep security intact by running untrusted PRs in isolated read-only GITHUB_TOKEN contexts, pinning third-party actions to full commit SHAs, and isolating secrets to deployment-only environments.

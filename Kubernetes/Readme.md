@@ -19,7 +19,7 @@ A. In Helm, different environments such as Dev, UAT, and Production are usually 
 5. then i will test it dev or locally and redeploy it into prod.
 6. then i will document this issue like cause of issue, what actions taken to resolve this.
 7. i will improve the CI/CD pipeline to catch issues eariler and implements health checks and automatic rollbacks.
-8. i will configure alerts in montioring toools to detect and give alert when issues occur.
+8. i will configure alerts in montioring tools to detect and give alert when issues occur.
 
 ## 5. what is p50, p95 and p99?
 A. P95, p50 and P99 latencies are percentiles used to measure the performance of a system from the perspective of your worst-experienced user requests.
@@ -172,7 +172,7 @@ spec:
 ```
 ### 12. K8's secret exists but our app not able access it?
 1. Check the secrets exists in correct *Namespace* using describe command, and check the service account has access the read the secrets(if not ensure service account has RBAC role to get the secrets).
-2. check the secrets are correctly configured and referrenced in yaml manifests(like invalid volumemounts  and spelling minstakes, key value errors).
+2. check the secrets are correctly configured and referrenced in yaml manifests(like invalid volumemounts  and spelling mistakes, key value errors).
 3. if secrets configured as env vars new secret changes will not be reflected in container until pod restarts, so configure secrets as volumes.
 
 ### 13. Difference between ImagePullBackOff or ErrImagePull and ErrImageNeverPull?
@@ -187,7 +187,7 @@ imagePullPolicy: IfNotPresent(Uses the local image if it exists; downloads regis
 2. Check the Node rules like Taint & toleraions, node-affinity, nodeselector are blocking the pod. take the confirmation to change the pod(tolerations) or node rules if not possible to create a new node. use the cluster auto-scaler to scale k8's cluster.
 
 ### 15. Difference between Node Affinity, Node selector , Taint & tolerations?
-A. if Node Affinity, Node selector configured nodes attracts the pods but Taint and tolerations are configured nodes repel the pods. we cannot use taints to force a pod onto a specific node, is we use node selector if pod lable not match pod stuck in peding state forever.
+A. if Node Affinity, Node selector configured nodes attracts the pods but Taint and tolerations are configured nodes repel the pods. we cannot use taints to force a pod onto a specific node, if we use node selector if pod label not match pod stuck in peding state forever.
 
 Node affinity have Advanced matching rules (like podAffinity) require the K8's scheduler to evaluate every node against every pod. This slows down cluster performance in large environments.
 
@@ -353,7 +353,7 @@ stateful applications need to save status and session info we can achieve this u
 ### 2. You need to ensure a specific pod is remain operational how to make sure the pod is always running?
 1. using Deployments and provides desired replica counts.
 2. config *restartpolicy: always* Forces the container to restart immediately if application process crashes.
-3. using livenss probes to restart stuck containers and Readiness Probes to stop traffic to the Pod by removing fro service if it becomes temporarily overloaded.
+3. using livenss probes to restart stuck containers and Readiness Probes to stop traffic to the Pod by removing from service if it becomes temporarily overloaded.
 4. Adding Resource request and limits to Place the Pod in the Guaranteed Quality of Service (QoS) class.
 5. Applying Pod Anti-Affinity it will prevents pods matching specific labels from being placed on the same node so all pods are distributed across the nodes.
 6. creating PDB.

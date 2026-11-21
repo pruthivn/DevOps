@@ -299,7 +299,7 @@ jobs:
               run: echo "Triggered by ${{ github.actor }}"
 ```
 
-for secrets we call secrests in this way "{{ secrets.access_key }} we con't see secrets in logs.
+for secrets we call secrests in this way "{{ secrets.access_key }} we can't see secrets in logs.
 
 ```yaml
   - name: Using to test the secret variable

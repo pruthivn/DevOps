@@ -201,6 +201,6 @@ Disconnected / Stopped: The server connection to the service has dropped or repl
 1. if you see the below error it will occur because we didn't setup the MGN service see the step 1 of creating MGN section.
 ![alt text](../.images/mgn_error.png)
 
-2. if you start the luanch test instance and getting back to ready for testing stage because in luanch settings luanch template is automatically picking c5.large(because right sizing is enabled) but it's not in free tier if you provide high cpu and memory instance also it will pick the c5.large instance. so we need to turn off the right sizing in luanch settings goto kaunch seetings click on edit button disable the right sizing and click on save changes.
+2. if you start the launch test instance and getting back to ready for testing stage because in launch settings launch template is automatically picking c5.large(because right sizing is enabled) but it's not in free tier if you provide high cpu and memory instance also it will pick the c5.large instance. so we need to turn off the right sizing in launch settings goto launch settings click on edit button disable the right sizing and click on save changes.
 ![alt text](../.images/mgn7.png)
 ![alt text](../.images/mgn8.png)
