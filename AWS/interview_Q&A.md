@@ -299,3 +299,6 @@ To achieve near-zero RTO (seconds to minutes) and RPO (seconds), implement an Ac
 2. **Compute Layer.** Run identical stateless compute clusters (EKS or EC2 ASGs) in both regions, pre-warmed to handle baseline traffic and configured to auto-scale on failover.
 3. **Data Layer.** Use Amazon Aurora Global Database (storage-level replication with typical RPO < 1 second and RTO < 1 minute) or Amazon DynamoDB Global Tables (active-active multi-region writes).
 4. **Storage & State.** Enable S3 Cross-Region Replication (CRR) with Replication Time Control (RTC) for object storage, and store session state externally in replicated stores rather than local memory.
+
+### AWS inspector scan all the resources in AWS?
+Inspector is designed for software vulnerability detection, so it will cover EC2(os level) instances, container images(CVE's), and Lambda functions(Package/library vulnerabilities), but not all AWS resources. to scan AMI's and code repo's for vulnerabilities need enable them in AWS Inspector --> settings --> scan settings.
